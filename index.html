@@ -604,23 +604,40 @@ var SFX = {
   secret: function(){ var n=[659,784,988,1318]; for (var i=0;i<4;i++) tone(n[i], .18, 'sine', .12, null, null, i*.08); },
   twang:  function(){ tone(196, .3, 'triangle', .1, null, 392); },
   win:    function(){ var n=[523,659,784,1046]; for (var i=0;i<4;i++) tone(n[i], .16, 'square', .13, null, null, i*.09); },
-  medal:  function(){ tone(1180, .1, 'sine', .15); tone(1560, .16, 'sine', .13, null, null, .07); }
+  medal:  function(){ tone(1180, .1, 'sine', .15); tone(1560, .16, 'sine', .13, null, null, .07); },
+  /* ---- Step 6B: World 2 factory sounds ---- */
+  klink:  function(){ tone(2093, .05, 'square', .07); tone(2637, .07, 'square', .05, null, null, .05); }, // T02 ambush tell: one sprinkle ticks
+  fweet:  function(){ tone(620, .42, 'sine', .09, null, 1420); },                                        // T07 vent tell: kettle whistle rising
+  chunk:  function(){ tone(140, .09, 'square', .13, null, 90); noiseBurst(.12, .06, 700); },              // T06 lever / belt klunk-WHIRR
+  chomp:  function(){ noiseBurst(.07, .12, 900); tone(150, .08, 'square', .1, null, 70); },              // T15 grinder teeth snap
+  clank:  function(){ tone(1180, .06, 'square', .06); tone(880, .09, 'square', .05, null, null, .05); noiseBurst(.05, .05, 2400); }, // domino / crane chain
+  tink:   function(){ tone(2349, .05, 'sine', .07); tone(2349, .05, 'sine', .06, null, null, .11); tone(1975, .06, 'sine', .06, null, null, .2); }, // T05 jar sprinkles rattle
+  sizzle: function(){ noiseBurst(.3, .05, 3400); },                                                       // T01 wafer floor starts to melt
+  glup:   function(){ tone(180, .12, 'sine', .1, null, 320); },                                           // T08 caramel drop forming / T22 flood bulge
+  splash: function(){ noiseBurst(.22, .09, 1100); tone(300, .15, 'sine', .06, null, 140); }               // T22 flood wave rises
 };
 /* little procedural chiptune loop (128 BPM square lead + bass); boss = faster */
 var MUSIC_NOTES = [523,587,659,784,659,587,523,392, 440,523,587,659,587,523,440,330];
 var MUSIC_BASS  = [131,0,196,0, 175,0,196,0, 131,0,196,0, 175,0,165,0];
-var musicBoss = false;
+/* Step 6B: World 2 factory groove — lower, heavier, machine-clank pulse (104 BPM; boss 132) */
+var MUSIC_NOTES_W2 = [392,392,440,392, 349,392,440,494, 392,392,440,392, 587,494,440,392];
+var MUSIC_BASS_W2  = [98,0,98,98, 87,0,87,87, 98,0,98,98, 110,0,87,0];
+var musicBoss = false, musicWorld = 1;
 function startMusic(boss){
+  musicWorld = (typeof L !== 'undefined' && L && L.world) ? L.world : 1;
   if (!AC || musicTimer) { musicBoss = boss; return; }
   musicBoss = boss;
-  var stepDur = function(){ return 60 / (musicBoss ? 168 : 128) / 2; };
+  var stepDur = function(){ return musicWorld === 2 ? (60 / (musicBoss ? 132 : 104) / 2) : (60 / (musicBoss ? 168 : 128) / 2); };
   musicTimer = setInterval(function(){
     if (!AC || !musicGain) return;
     if (save.settings.music <= 0.01) { musicStep++; return; }
     var i = musicStep % 16;
-    var f = MUSIC_NOTES[i] * (musicBoss ? 0.891 : 1); // boss: minor-ish drop
+    var notes = musicWorld === 2 ? MUSIC_NOTES_W2 : MUSIC_NOTES;
+    var bass = musicWorld === 2 ? MUSIC_BASS_W2 : MUSIC_BASS;
+    var f = notes[i] * (musicBoss ? 0.891 : 1); // boss: minor-ish drop
     tone(f, stepDur() * 0.95, 'square', 0.055, musicGain);
-    if (MUSIC_BASS[i]) tone(MUSIC_BASS[i], stepDur() * 1.4, 'triangle', 0.09, musicGain);
+    if (bass[i]) tone(bass[i], stepDur() * 1.4, 'triangle', musicWorld === 2 ? 0.12 : 0.09, musicGain);
+    if (musicWorld === 2 && i % 4 === 0) noiseBurst(0.05, 0.028, 2600); // factory clank on the beat
     musicStep++;
   }, 235);
 }
@@ -749,6 +766,30 @@ var LEVEL_META = [
  ['The Final Rehearsal',5,2,0],['THE SWEETEST LIE',5,3,1]
 ];
 var PAR_TIMES = [20,25,25,30,30,30,30,35,30,25, 30,35,35,40,35,40,35,40,35,30, 40,40,40,45,40,45,40,45,45,30, 40,45,45,50,45,45,50,50,50,30, 50,50,50,55,50,55,55,55,55,55]; // seconds per level (Step 4 est. times; bosses = survival time)
+/* ---- Step 6B: World 2 — Chocolate Factory (Step 4 level-list-w2, binding) ---- */
+var ZONES_W2 = ['The Melting Line','Wafer Works','Caramel Vats','Press Alley','The Tempering Floor'];
+var LEVEL_META_W2 = [
+ ['First Day on the Line',2,4,0],['Sprinkles in the Floor',2,4,0],['The Belt Decides',2,4,0],['Mind the Press',2,4,0],
+ ['Two Tiles, One Breath',2,4,0],['Jar on the Edge',3,4,0],['Press Your Luck',3,4,0],['The Lever Lies (Nicely)',3,4,0],
+ ['Rush Hour on the Line',3,4,0],['Melting Line Meltdown',3,5,1],
+ ['The Foreman\'s Shortcut',3,3,0],['Glup, Glup, Gone',3,3,0],['Spike in the Sprinkles',3,3,0],['Truffle Trouble',3,3,0],
+ ['Steam Room Rules',3,3,0],['Domino Day',3,3,0],['Drip Feed',3,3,0],['Inside the Vat',3,3,0],
+ ['Truffle Express',3,3,0],['Wafer Works Overdrive',3,4,1],
+ ['Levers of the Vat Room',3,3,0],['Caramel Threads',3,3,0],['Melt Faster',3,3,0],['The 8:15 to Cocoa Town',3,3,0],
+ ['Sticky Belt, Rolling Stone',3,3,0],['Chomp Schedule',3,3,0],['Drip, Stick, Chomp',3,3,0],['The Hollow Bar',3,3,0],
+ ['Night Shift Line',3,3,0],['Caramel Vats Boilover',3,4,1],
+ ['Welcome to Press Alley',4,2,0],['The Lift That Drops',4,2,0],['Truffle Season',4,2,0],['Cracks in the Shell',4,2,0],
+ ['Crane Games',4,2,0],['Domino Rally',4,2,0],['Rain Checks',4,2,0],['Kernel Panic',4,2,0],
+ ['Popcorn Alley',4,2,0],['Press Alley Pile-Up',4,3,1],
+ ['One-Two, One-Two-THREE',4,2,0],['Gusher Alley',4,2,0],['The Sticky Gauntlet',4,2,0],['At the Gate, It Boils',4,2,0],
+ ['Full Production',4,2,0],['Cart Before the Horse',5,2,0],['Read It Backwards',5,2,0],['The Floor Is Chocolate',5,2,0],
+ ['Every Machine at Once',5,2,0],['THE TEMPERING TITAN',5,3,1]
+];
+var PAR_TIMES_W2 = [25,25,30,30,30,30,35,35,35,25, 35,35,35,35,40,40,40,40,40,30, 40,40,45,45,45,45,45,45,45,30, 45,45,50,50,50,50,50,50,50,30, 50,50,55,50,55,55,55,55,55,55]; // Step 4 W2 est. times
+function worldOfIdx(idx){ return Math.floor(idx / 50) + 1; }
+function levelInWorld(idx){ return (idx % 50) + 1; }
+function metaFor(idx){ return idx < 50 ? LEVEL_META[idx] : LEVEL_META_W2[idx - 50]; }
+function parFor(idx){ return idx < 50 ? PAR_TIMES[idx] : PAR_TIMES_W2[idx - 50]; }
 var TIPS = ['Sugar is not your friend.','If it looks safe, look again.','The sign is lying. Probably.','Every trap tells the truth — once. Listen for it.','A green glow is never a gift.'];
 
 /* ---------------- LEVELS 1–10 (World 1) — geometry ----------------
@@ -1029,12 +1070,235 @@ var LEVELS = [
             {type:'fountain',x:240,top:500,h:150,period:3.2,off:0,bphase:2}, {type:'fountain',x:1000,top:500,h:150,period:3.2,off:1.1,bphase:2},
             {type:'fakeDoor',x:620,top:500,bphase:3}, {type:'rotbloom',x:1096,w:54,top:500,bphase:3} ] }
 ];
+/* ================= Step 6B: WORLD 2 level data (level-list-w2, binding) =================
+   Trap map: T01 melt platform · T02 ambush · T03 belt platform · T04 press · T05 jar ·
+   T06 lever+slide · T07 vent · T08 cdrip · T09 truffle · T10 domino · T11 mixer ·
+   T12 gusher · T13 snare · T14 cart · T15 teeth · T16 hslab platform · T17 rain ·
+   T18 lift platform · T19 crane · T20 kernel · T21 press twin:true · T22 flood.     */
+var LEVELS_W2 = [
+  { width:1400, start:{x:50,y:462}, door:{x:1310,y:500},   // W2-L1 First Day on the Line (T01 teaching: solid, then small pits)
+    platforms:[ G(0,300), {x:300,y:524,w:170,h:16,kind:'ground'}, {x:330,y:500,w:96,h:14,kind:'melt'}, G(470,280), {x:758,y:500,w:84,h:14,kind:'melt'}, G(850,190), {x:1048,y:500,w:84,h:14,kind:'melt'}, G(1140,260) ],
+    coins:[ C(150,462), C(378,462), C(610,462), C(1220,462) ], traps:[] },
+  { width:1300, start:{x:50,y:462}, door:{x:1210,y:500},   // W2-L2 Sprinkles in the Floor (T02x2 + T01)
+    platforms:[ G(0,1300), {x:330,y:428,w:90,h:14,kind:'wafer'}, {x:1010,y:486,w:96,h:14,kind:'melt'} ],
+    coins:[ C(180,462), C(375,390), C(640,462), C(1058,448), C(1200,462) ],
+    traps:[ {type:'ambush',x:430,w:56,top:500}, {type:'ambush',x:830,w:56,top:500} ] },
+  { width:1540, start:{x:50,y:462}, door:{x:1450,y:500},   // W2-L3 The Belt Decides (T03x2 + T01)
+    platforms:[ G(0,360), {x:360,y:500,w:380,h:40,kind:'belt',speed:85,dir:1}, G(830,240), {x:1070,y:500,w:300,h:40,kind:'belt',speed:85,dir:1,flip:6,flipOff:2}, G(1370,170), {x:1240,y:486,w:96,h:14,kind:'melt'} ],
+    coins:[ C(180,462), C(550,462), C(950,462), C(1220,462), C(1440,462) ], traps:[] },
+  { width:1320, start:{x:50,y:462}, door:{x:1230,y:500},   // W2-L4 Mind the Press (T04 + T03: belt runs under the press)
+    platforms:[ G(0,420), {x:420,y:500,w:330,h:40,kind:'belt',speed:80,dir:1}, {x:430,y:428,w:80,h:14,kind:'wafer'}, G(750,570) ],
+    coins:[ C(200,462), C(470,390), C(585,462), C(950,462), C(1150,462) ],
+    traps:[ {type:'press',x:585,top:500,period:3.6,off:0.4} ] },
+  { width:1360, start:{x:50,y:462}, door:{x:1270,y:500},   // W2-L5 Two Tiles, One Breath (T01 chain; last "tile" is an ambush)
+    platforms:[ G(0,300), {x:330,y:500,w:110,h:14,kind:'melt'}, {x:500,y:500,w:110,h:14,kind:'melt'}, {x:670,y:500,w:110,h:14,kind:'melt'}, G(840,520) ],
+    coins:[ C(150,462), C(385,462), C(555,462), C(725,462), C(1050,462), C(1250,462) ],
+    traps:[ {type:'ambush',x:900,w:56,top:500} ] },
+  { width:1300, start:{x:50,y:462}, door:{x:1210,y:500},   // W2-L6 Jar on the Edge (T05x2 + T01)
+    platforms:[ G(0,1300), {x:640,y:486,w:110,h:14,kind:'melt'} ],
+    coins:[ C(180,462), C(420,462), C(688,448), C(950,462), C(1180,462) ],
+    traps:[ {type:'jar',x:420,y:318,top:500}, {type:'jar',x:695,y:318,top:486,repeat:3.4} ] },
+  { width:1420, start:{x:50,y:462}, door:{x:1330,y:500},   // W2-L7 Press Your Luck (T04x2 staggered + T02 between)
+    platforms:[ G(0,1420) ],
+    coins:[ C(200,462), C(480,462), C(610,462), C(728,462), C(920,462), C(1250,462) ],
+    traps:[ {type:'press',x:480,top:500,period:3.4,off:0}, {type:'ambush',x:700,w:56,top:500}, {type:'press',x:920,top:500,period:3.4,off:1.7} ] },
+  { width:1380, start:{x:50,y:462}, door:{x:1290,y:500},   // W2-L8 The Lever Lies (Nicely) (T06 safe teach + T01 pit)
+    platforms:[ G(0,430), {x:545,y:500,w:110,h:14,kind:'melt'}, {x:450,y:440,w:110,h:14,kind:'slide',leverId:'a',dx:-190,dy:0}, G(760,620) ],
+    coins:[ C(180,462), C(330,462), C(505,402), C(600,462), C(1000,462), C(1200,462) ],
+    traps:[ {type:'lever',id:'a',x:330,top:500} ] },
+  { width:1460, start:{x:50,y:462}, door:{x:1370,y:500},   // W2-L9 Rush Hour on the Line (T05 + T03 long-flip + T04)
+    platforms:[ G(0,340), {x:340,y:500,w:420,h:40,kind:'belt',speed:90,dir:1,flip:9,flipOff:3}, G(760,700) ],
+    coins:[ C(170,462), C(470,462), C(700,462), C(1010,462), C(1200,462), C(1360,462) ],
+    traps:[ {type:'jar',x:560,y:318,top:500,repeat:4.2}, {type:'press',x:1010,top:500,period:3.4,off:0.6} ] },
+  { width:1240, start:{x:50,y:462}, door:{x:1156,y:500}, boss:{dur:25,waveEvery:5,seq:[0,1,0,1,2]},   // W2-L10 MINI-BOSS Melting Line Meltdown (T01+T02 remix, T07 intro last 10s)
+    platforms:[ G(0,1240), {x:300,y:486,w:96,h:14,kind:'melt'}, {x:560,y:486,w:96,h:14,kind:'melt'}, {x:820,y:486,w:96,h:14,kind:'melt'} ],
+    coins:[ C(120,462), C(348,448), C(480,462), C(608,448), C(730,462), C(868,448), C(1020,462) ],
+    traps:[ {type:'ambush',x:200,w:56,top:500,boss:0}, {type:'ambush',x:430,w:56,top:500,boss:0},
+            {type:'ambush',x:760,w:56,top:500,boss:1}, {type:'ambush',x:1010,w:56,top:500,boss:1},
+            {type:'vent',x:1080,top:500,period:4.6,off:0,boss:2} ] },
+  { width:1400, start:{x:50,y:462}, door:{x:1310,y:500},   // W2-L11 The Foreman's Shortcut (T06 + T04 + T03: belt below, lever shortcut above)
+    platforms:[ G(0,300), {x:300,y:500,w:520,h:40,kind:'belt',speed:75,dir:1}, {x:330,y:440,w:80,h:14,kind:'wafer'}, {x:880,y:400,w:130,h:14,kind:'slide',leverId:'a',dx:-460,dy:0}, G(820,580) ],
+    coins:[ C(150,462), C(560,462), C(485,362), C(900,462), C(1250,462) ],
+    traps:[ {type:'lever',id:'a',x:200,top:500}, {type:'press',x:900,top:500,period:3.4,off:0.2} ] },
+  { width:1360, start:{x:50,y:462}, door:{x:1270,y:500}, checkpoint:{x:600,y:500},   // W2-L12 Glup, Glup, Gone (T08x2 + T01)
+    platforms:[ G(0,1360), {x:640,y:486,w:110,h:14,kind:'melt'} ],
+    coins:[ C(180,462), C(430,462), C(688,448), C(900,462), C(1100,462), C(1260,462) ],
+    traps:[ {type:'cdrip',x:430,y:300,top:500,period:2.7,off:0}, {type:'cdrip',x:695,y:290,top:486,period:3.4,off:0.7} ] },
+  { width:1420, start:{x:50,y:462}, door:{x:1340,y:500},   // W2-L13 Spike in the Sprinkles (T02x3 + T06: the "wrong" pull is right)
+    platforms:[ G(0,1420), {x:830,y:428,w:130,h:14,kind:'slide',leverId:'a',dx:-330,dy:0} ],
+    coins:[ C(180,462), C(565,390), C(668,462), C(950,462), C(1150,462), C(1290,462) ],
+    traps:[ {type:'lever',id:'a',x:430,top:500}, {type:'ambush',x:560,w:56,top:500}, {type:'ambush',x:640,w:56,top:500}, {type:'ambush',x:720,w:56,top:500} ] },
+  { width:1480, start:{x:50,y:462}, door:{x:1390,y:500}, checkpoint:{x:990,y:500},   // W2-L14 Truffle Trouble (T09 + T03: long belt toward you)
+    platforms:[ G(0,300), {x:300,y:500,w:640,h:40,kind:'belt',speed:80,dir:1}, {x:480,y:428,w:90,h:14,kind:'wafer'}, {x:700,y:428,w:90,h:14,kind:'wafer'}, G(940,540) ],
+    coins:[ C(150,462), C(525,390), C(745,390), C(620,462), C(1100,462), C(1300,462) ],
+    traps:[ {type:'truffle',at:330,x:905,top:500,dir:-1,speed:170,repeat:7} ] },
+  { width:1400, start:{x:50,y:462}, door:{x:1310,y:500},   // W2-L15 Steam Room Rules (T07x2 alternating + T04 at the door)
+    platforms:[ G(0,1400) ],
+    coins:[ C(180,462), C(480,462), C(650,462), C(820,462), C(1000,462), C(1230,462), C(1280,462) ],
+    traps:[ {type:'vent',x:480,top:500,period:3.4,off:0}, {type:'vent',x:820,top:500,period:3.4,off:1.7}, {type:'press',x:1230,top:500,period:3.6,off:0.8} ] },
+  { width:1440, start:{x:50,y:462}, door:{x:1350,y:500}, checkpoint:{x:1060,y:500},   // W2-L16 Domino Day (T10x2 + T02: second run over the ambush post)
+    platforms:[ G(0,1440) ],
+    coins:[ C(180,462), C(520,462), C(880,462), C(1000,462), C(1200,462), C(1300,462) ],
+    traps:[ {type:'domino',x:430,top:500,n:4,dir:1,gap:56,h:118}, {type:'domino',x:800,top:500,n:4,dir:1,gap:56,h:118}, {type:'ambush',x:880,w:56,top:500} ] },
+  { width:1460, start:{x:50,y:462}, door:{x:1360,y:500},   // W2-L17 Drip Feed (T08x3 rhythm + T05)
+    platforms:[ G(0,1460) ],
+    coins:[ C(170,462), C(400,462), C(640,462), C(880,462), C(1020,462), C(1150,462), C(1330,462) ],
+    traps:[ {type:'cdrip',x:400,y:300,top:500,period:2.7,off:0}, {type:'cdrip',x:640,y:300,top:500,period:2.7,off:0.9}, {type:'cdrip',x:880,y:300,top:500,period:2.7,off:1.8}, {type:'jar',x:1150,y:318,top:500,repeat:4.6} ] },
+  { width:1500, start:{x:50,y:462}, door:{x:1430,y:500}, checkpoint:{x:420,y:500},   // W2-L18 Inside the Vat (T11 + T03; fake wall behind the vat -> S4)
+    platforms:[ G(0,1160), {x:560,y:446,w:60,h:54,kind:'wafer'}, {x:900,y:450,w:60,h:14,kind:'wafer'}, {x:960,y:400,w:80,h:14,kind:'wafer'}, {x:1040,y:320,w:26,h:120,kind:'fakewall'}, {x:1160,y:500,w:240,h:40,kind:'belt',speed:80,dir:1}, G(1400,100) ],
+    coins:[ C(180,462), C(420,462), C(620,462), C(700,462), C(960,462), C(1280,462), C(1420,462) ],
+    traps:[ {type:'mixer',x:830,y:330,top:500,len:180,period:5.4}, {type:'secret',id:'S4',x:1068,y:300,w:36,h:150} ] },
+  { width:1540, start:{x:50,y:462}, door:{x:1450,y:500},   // W2-L19 Truffle Express (T09x2, second is smaller-not-faster + T07 on the ledge)
+    platforms:[ G(0,280), {x:280,y:500,w:760,h:40,kind:'belt',speed:85,dir:1}, {x:640,y:428,w:100,h:14,kind:'wafer'}, G(1040,500) ],
+    coins:[ C(140,462), C(450,462), C(690,390), C(850,462), C(1150,462), C(1300,462), C(1420,462) ],
+    traps:[ {type:'truffle',at:300,x:1000,top:500,dir:-1,speed:175,repeat:8}, {type:'truffle',at:760,x:1000,top:500,dir:-1,speed:175,repeat:8,small:1}, {type:'vent',x:690,top:428,period:3.4,off:0.5} ] },
+  { width:1240, start:{x:50,y:462}, door:{x:1156,y:500}, boss:{dur:30,waveEvery:3.33,seq:[0,1,0,1,0,1,2,2,2],checkpointAt:15},   // W2-L20 MINI-BOSS Wafer Works Overdrive (T11 + T03 boss-flip belt, T12 intro)
+    platforms:[ G(0,200), {x:200,y:500,w:840,h:40,kind:'belt',speed:70,dir:1,bossDir:true}, G(1040,200) ],
+    coins:[ C(100,462), C(320,462), C(500,462), C(620,462), C(740,462), C(920,462), C(1020,462), C(1100,462) ],
+    traps:[ {type:'mixer',x:620,y:325,top:500,len:185,period:5.0}, {type:'gusher',x:1180,top:500,dir:-1,len:190,jetY:34,period:3.2,off:0,boss:2} ] },
+  { width:1380, start:{x:50,y:462}, door:{x:1290,y:500},   // W2-L21 Levers of the Vat Room (T06 + T10 falling TOWARD you)
+    platforms:[ G(0,380), {x:660,y:470,w:120,h:14,kind:'slide',leverId:'a',dx:-270,dy:0}, G(640,740) ],
+    coins:[ C(150,462), C(450,432), C(750,462), C(1050,462), C(1180,462), C(1240,462) ],
+    traps:[ {type:'lever',id:'a',x:260,top:500}, {type:'domino',x:1150,top:500,n:4,dir:-1,gap:56,h:118} ] },
+  { width:1400, start:{x:50,y:462}, door:{x:1320,y:500}, checkpoint:{x:660,y:500},   // W2-L22 Caramel Threads (T13x2 + T08: second snare under a drip)
+    platforms:[ G(0,1400) ],
+    coins:[ C(170,462), C(485,462), C(650,462), C(875,462), C(1050,462), C(1200,462), C(1250,462) ],
+    traps:[ {type:'snare',x:400,w:170,top:500}, {type:'cdrip',x:850,y:300,top:500,period:2.7,off:0.4}, {type:'snare',x:790,w:170,top:500} ] },
+  { width:1420, start:{x:50,y:462}, door:{x:1330,y:500},   // W2-L23 Melt Faster (T01 hot ~half fuse + T07 on the middle post)
+    platforms:[ G(0,330), {x:360,y:500,w:96,h:14,kind:'melt',meltT:0.55}, G(490,130), {x:650,y:500,w:96,h:14,kind:'melt',meltT:0.55}, G(780,180), {x:990,y:500,w:96,h:14,kind:'melt',meltT:0.55}, G(1110,310) ],
+    coins:[ C(160,462), C(408,462), C(555,462), C(698,462), C(845,462), C(1038,462), C(1250,462) ],
+    traps:[ {type:'vent',x:860,top:500,period:3.4,off:0.8} ] },
+  { width:1500, start:{x:50,y:462}, door:{x:1410,y:500}, checkpoint:{x:820,y:500},   // W2-L24 The 8:15 to Cocoa Town (T14 + T12 cutting the rail)
+    platforms:[ G(0,1500), {x:420,y:428,w:90,h:14,kind:'wafer'}, {x:760,y:428,w:90,h:14,kind:'wafer'}, {x:1100,y:428,w:90,h:14,kind:'wafer'} ],
+    coins:[ C(200,462), C(465,390), C(620,462), C(805,390), C(1000,462), C(1145,390), C(1400,462) ],
+    traps:[ {type:'cart',at:200,x:120,top:500,dir:1,speed:300,period:6}, {type:'gusher',x:1330,top:500,dir:-1,len:190,jetY:34,period:3.6,off:1.0} ] },
+  { width:1460, start:{x:50,y:462}, door:{x:1370,y:500},   // W2-L25 Sticky Belt, Rolling Stone (T13 + T09 + T03 constant belt)
+    platforms:[ G(0,300), {x:300,y:500,w:620,h:40,kind:'belt',speed:95,dir:1}, {x:520,y:428,w:110,h:14,kind:'wafer'}, G(920,540) ],
+    coins:[ C(150,462), C(420,462), C(575,390), C(800,462), C(1000,462), C(1200,462), C(1330,462) ],
+    traps:[ {type:'snare',x:560,w:150,top:500}, {type:'truffle',at:320,x:880,top:500,dir:-1,speed:180,repeat:7} ] },
+  { width:1440, start:{x:50,y:462}, door:{x:1355,y:500}, checkpoint:{x:640,y:500},   // W2-L26 Chomp Schedule (T15x2 + T01)
+    platforms:[ G(0,1440), {x:700,y:486,w:96,h:14,kind:'melt'} ],
+    coins:[ C(170,462), C(490,462), C(748,448), C(920,462), C(1100,462), C(1250,462), C(1300,462) ],
+    traps:[ {type:'teeth',x:430,w:120,top:500,period:3.2,off:0}, {type:'teeth',x:860,w:120,top:500,period:3.2,off:1.1} ] },
+  { width:1460, start:{x:50,y:462}, door:{x:1385,y:500},   // W2-L27 Drip, Stick, Chomp (T08 PAIRED + T13 + T15)
+    platforms:[ G(0,1460) ],
+    coins:[ C(170,462), C(490,462), C(640,462), C(775,462), C(920,462), C(1080,462), C(1250,462), C(1380,462) ],
+    traps:[ {type:'cdrip',x:460,y:300,top:500,period:2.9,off:0}, {type:'cdrip',x:520,y:300,top:500,period:2.9,off:0}, {type:'snare',x:700,w:150,top:500}, {type:'teeth',x:1020,w:120,top:500,period:3.2,off:0.6} ] },
+  { width:1480, start:{x:50,y:462}, door:{x:1400,y:500}, checkpoint:{x:640,y:500},   // W2-L28 The Hollow Bar (T16x2: safe pit lesson, then the real one + T14)
+    platforms:[ G(0,360), {x:360,y:524,w:200,h:16,kind:'ground'}, {x:385,y:500,w:150,h:14,kind:'hslab',crackT:0.4}, G(560,200), {x:785,y:500,w:150,h:14,kind:'hslab',crackT:0.4}, G(960,520) ],
+    coins:[ C(170,462), C(460,462), C(660,462), C(860,462), C(1080,462), C(1250,462), C(1330,462) ],
+    traps:[ {type:'cart',at:980,x:980,top:500,dir:1,speed:290,period:5.5} ] },
+  { width:1560, start:{x:50,y:462}, door:{x:1490,y:500}, secretFall:{x1:1305,x2:1365,id:'S5'},   // W2-L29 Night Shift Line (T03 always-reversed + T16 + T02; hidden floor -> S5)
+    platforms:[ G(0,280), {x:280,y:500,w:560,h:40,kind:'belt',speed:100,dir:-1}, G(840,60), {x:838,y:486,w:64,h:14,kind:'hslab',crackT:0.4}, {x:900,y:500,w:380,h:40,kind:'belt',speed:100,dir:-1,flip:5,flipOff:1}, G(1280,20), {x:1300,y:500,w:70,h:40,kind:'fakewall'}, G(1370,190) ],
+    coins:[ C(140,462), C(400,462), C(700,462), C(870,448), C(1050,462), C(1200,462), C(1335,462), C(1440,462) ],
+    traps:[ {type:'ambush',x:846,w:48,top:500} ] },
+  { width:1240, start:{x:50,y:462}, door:{x:1156,y:500}, boss:{dur:30,waveEvery:3.33,seq:[0,1,0,1,0,1,2,2,2],checkpointAt:15},   // W2-L30 MINI-BOSS Caramel Vats Boilover (T12+T13 remix, T17 intro)
+    platforms:[ G(0,1240) ],
+    coins:[ C(120,462), C(300,462), C(505,462), C(600,462), C(735,462), C(900,462), C(965,462), C(1100,462) ],
+    traps:[ {type:'gusher',x:70,top:500,dir:1,len:190,jetY:34,period:3.4,off:0,boss:0}, {type:'gusher',x:1170,top:500,dir:-1,len:190,jetY:34,period:3.4,off:0.6,boss:1},
+            {type:'snare',x:430,w:150,top:500}, {type:'snare',x:660,w:150,top:500},
+            {type:'rain',x:880,w:170,top:500,period:3.8,off:0,boss:2} ] },
+  { width:1460, start:{x:50,y:462}, door:{x:1380,y:500}, checkpoint:{x:620,y:500},   // W2-L31 Welcome to Press Alley (T04x2 fast + T14; alcoves safe from one hazard each)
+    platforms:[ G(0,1460), {x:590,y:428,w:90,h:14,kind:'wafer'}, {x:1010,y:428,w:90,h:14,kind:'wafer'} ],
+    coins:[ C(180,462), C(440,462), C(635,390), C(800,462), C(1055,390), C(1200,462), C(1330,462) ],
+    traps:[ {type:'press',x:440,top:500,period:2.9,off:0}, {type:'press',x:800,top:500,period:2.9,off:1.45}, {type:'cart',at:150,x:130,top:500,dir:1,speed:305,period:6.5} ] },
+  { width:1500, start:{x:50,y:462}, door:{x:1420,y:384}, checkpoint:{x:820,y:500},   // W2-L32 The Lift That Drops (T18x2: safe lesson, then the real climb + T11 at the top door)
+    platforms:[ G(0,400), {x:400,y:524,w:160,h:16,kind:'ground'}, {x:430,y:500,w:84,h:16,kind:'lift',rise:110}, {x:560,y:404,w:200,h:14,kind:'wafer'}, G(760,240), {x:1030,y:500,w:84,h:16,kind:'lift',rise:130}, {x:1160,y:384,w:340,h:14,kind:'wafer'} ],
+    coins:[ C(180,462), C(300,462), C(472,462), C(660,366), C(880,462), C(1072,462), C(1250,346), C(1380,346) ],
+    traps:[ {type:'mixer',x:1250,y:230,top:384,len:165,period:5.2} ] },
+  { width:1520, start:{x:50,y:462}, door:{x:1430,y:500},   // W2-L33 Truffle Season (T09x2 parallel lanes + T15 between)
+    platforms:[ G(0,280), {x:250,y:452,w:60,h:12,kind:'wafer'}, {x:280,y:500,w:700,h:40,kind:'belt',speed:85,dir:1}, {x:300,y:404,w:660,h:14,kind:'belt',speed:85,dir:1}, G(980,540) ],
+    coins:[ C(140,462), C(450,462), C(480,366), C(700,462), C(730,366), C(1070,462), C(1250,462), C(1400,462) ],
+    traps:[ {type:'truffle',at:300,x:940,top:500,dir:-1,speed:175,repeat:8}, {type:'truffle',at:300,x:920,top:404,dir:-1,speed:175,repeat:8}, {type:'teeth',x:1010,w:120,top:500,period:3.2,off:0.4} ] },
+  { width:1500, start:{x:50,y:462}, door:{x:1430,y:500}, checkpoint:{x:980,y:500},   // W2-L34 Cracks in the Shell (T16x3 chain + T07x2: rest only in the vents' silence)
+    platforms:[ G(0,340), {x:360,y:500,w:150,h:14,kind:'hslab',crackT:0.4}, {x:545,y:500,w:150,h:14,kind:'hslab',crackT:0.4}, {x:730,y:500,w:150,h:14,kind:'hslab',crackT:0.4}, G(940,160), G(1180,320) ],
+    coins:[ C(160,462), C(435,462), C(620,462), C(805,462), C(1020,462), C(1140,462), C(1300,462), C(1360,462) ],
+    traps:[ {type:'vent',x:1010,top:500,period:3.4,off:0}, {type:'vent',x:1300,top:500,period:3.4,off:1.7} ] },
+  { width:1480, start:{x:50,y:462}, door:{x:1405,y:500}, checkpoint:{x:660,y:500},   // W2-L35 Crane Games (T19x2 + T04: block and press never coincide)
+    platforms:[ G(0,1480) ],
+    coins:[ C(170,462), C(470,462), C(650,462), C(830,462), C(1000,462), C(1130,462), C(1300,462), C(1400,462) ],
+    traps:[ {type:'crane',x:470,top:500,period:4.6,off:0}, {type:'press',x:830,top:500,period:3.4,off:0.5}, {type:'crane',x:1130,top:500,period:4.6,off:1.2} ] },
+  { width:1560, start:{x:50,y:462}, door:{x:1490,y:500},   // W2-L36 Domino Rally (T10x3 chain-reaction + T14; one alcove safe from all)
+    platforms:[ G(0,1560), {x:1240,y:428,w:90,h:14,kind:'wafer'} ],
+    coins:[ C(160,462), C(480,462), C(620,462), C(780,462), C(920,462), C(1080,462), C(1285,390), C(1400,462), C(1450,462) ],
+    traps:[ {type:'domino',id:'d1',x:400,top:500,n:4,dir:1,gap:56,h:118}, {type:'domino',id:'d2',after:'d1',x:700,top:500,n:4,dir:1,gap:56,h:118}, {type:'domino',after:'d2',x:1000,top:500,n:4,dir:1,gap:56,h:118}, {type:'cart',at:1150,x:120,top:500,dir:1,speed:300,period:7} ] },
+  { width:1480, start:{x:50,y:462}, door:{x:1390,y:500}, checkpoint:{x:660,y:500},   // W2-L37 Rain Checks (T17x2 + T18: the lift's drop is bound to the rain)
+    platforms:[ G(0,730), {x:760,y:500,w:84,h:16,kind:'lift',rise:120}, {x:880,y:394,w:200,h:14,kind:'wafer'}, G(1080,400) ],
+    coins:[ C(160,462), C(300,462), C(515,462), C(650,462), C(802,462), C(980,356), C(1255,462), C(1380,462) ],
+    traps:[ {type:'rain',x:430,w:170,top:500,period:3.8,off:0}, {type:'rain',x:1180,w:150,top:500,period:3.4,off:1.2} ] },
+  { width:1460, start:{x:50,y:462}, door:{x:1410,y:500}, checkpoint:{x:640,y:500},   // W2-L38 Kernel Panic (T20x2 + T15: the silence before the POP is part of the tell)
+    platforms:[ G(0,1460) ],
+    coins:[ C(160,462), C(340,462), C(460,462), C(620,462), C(820,462), C(1080,462), C(1220,462), C(1300,462), C(1360,462) ],
+    traps:[ {type:'kernel',x:460,top:500,period:3.8,off:0}, {type:'teeth',x:760,w:120,top:500,period:3.2,off:0.5}, {type:'kernel',x:1080,top:500,period:3.8,off:1.4} ] },
+  { width:1500, start:{x:50,y:462}, door:{x:1425,y:500},   // W2-L39 Popcorn Alley (T20 clusters of three + T08x2)
+    platforms:[ G(0,1500) ],
+    coins:[ C(160,462), C(420,462), C(600,462), C(760,462), C(920,462), C(1080,462), C(1200,462), C(1300,462), C(1420,462) ],
+    traps:[ {type:'kernel',x:420,top:500,period:3.6,off:0,cluster:3}, {type:'cdrip',x:760,y:300,top:500,period:2.7,off:0.3}, {type:'cdrip',x:1080,y:300,top:500,period:2.7,off:1.2}, {type:'kernel',x:1300,top:500,period:3.6,off:1.8,cluster:3} ] },
+  { width:1240, start:{x:50,y:462}, door:{x:1156,y:500}, boss:{dur:30,waveEvery:5,seq:[0,1,0,1,2,1],checkpointAt:15},   // W2-L40 MINI-BOSS Press Alley Pile-Up (T04+T14+T19: the safe alcove keeps moving)
+    platforms:[ G(0,1240) ],
+    coins:[ C(120,462), C(280,462), C(400,462), C(560,462), C(700,462), C(840,462), C(950,462), C(1050,462), C(1120,462) ],
+    traps:[ {type:'press',x:400,top:500,period:3.2,off:0,boss:0}, {type:'press',x:840,top:500,period:3.2,off:0.8,boss:1},
+            {type:'cart',at:60,x:80,top:500,dir:1,speed:300,period:6.5}, {type:'crane',x:1000,top:500,period:4.8,off:0,boss:2} ] },
+  { width:1440, start:{x:50,y:462}, door:{x:1350,y:500}, checkpoint:{x:680,y:500},   // W2-L41 One-Two, One-Two-THREE (T21: the lamp counts, the third cycle changes + T19)
+    platforms:[ G(0,1440) ],
+    coins:[ C(170,462), C(400,462), C(560,462), C(660,462), C(760,462), C(950,462), C(1080,462), C(1300,462) ],
+    traps:[ {type:'press',x:560,top:500,period:3.4,off:0,twin:true}, {type:'press',x:760,top:500,period:3.4,off:1.7,twin:true}, {type:'crane',x:1080,top:500,period:4.8,off:0.6} ] },
+  { width:1480, start:{x:50,y:462}, door:{x:1420,y:500}, checkpoint:{x:700,y:500},   // W2-L42 Gusher Alley (T12x2 counter-rhythm + T21 behind: forward is the only line)
+    platforms:[ G(0,1480) ],
+    coins:[ C(150,462), C(380,462), C(540,462), C(700,462), C(810,462), C(1000,462), C(1160,462), C(1330,462), C(1390,462) ],
+    traps:[ {type:'press',x:380,top:500,period:3.4,off:0,twin:true}, {type:'press',x:540,top:500,period:3.4,off:1.7,twin:true},
+            {type:'gusher',x:900,top:500,dir:-1,len:190,jetY:34,period:3.6,off:0}, {type:'gusher',x:1250,top:500,dir:-1,len:190,jetY:34,period:3.6,off:1.8} ] },
+  { width:1500, start:{x:50,y:462}, door:{x:1410,y:500}, checkpoint:{x:720,y:500},   // W2-L43 The Sticky Gauntlet (T13x2 between T21 + T15)
+    platforms:[ G(0,1500) ],
+    coins:[ C(160,462), C(430,462), C(615,462), C(700,462), C(900,462), C(1085,462), C(1200,462), C(1300,462), C(1400,462) ],
+    traps:[ {type:'press',x:430,top:500,period:3.4,off:0,twin:true}, {type:'snare',x:540,w:150,top:500}, {type:'press',x:900,top:500,period:3.4,off:1.7,twin:true},
+            {type:'snare',x:1010,w:150,top:500}, {type:'teeth',x:1240,w:120,top:500,period:3.2,off:0.3} ] },
+  { width:1500, start:{x:50,y:462}, door:{x:1400,y:500}, checkpoint:{x:950,y:500},   // W2-L44 At the Gate, It Boils (T22 intro + T17: count both intervals)
+    platforms:[ G(0,1500), {x:1150,y:452,w:70,h:12,kind:'wafer'}, {x:1210,y:414,w:170,h:14,kind:'wafer'} ],
+    coins:[ C(160,462), C(400,462), C(650,462), C(700,462), C(900,462), C(1100,462), C(1295,376), C(1330,462), C(1440,462) ],
+    traps:[ {type:'rain',x:1020,w:160,top:500,period:3.8,off:0.6}, {type:'flood',x:1240,w:150,top:500,period:6.4,off:0} ] },
+  { width:1560, start:{x:50,y:462}, door:{x:1470,y:500}, checkpoint:{x:960,y:500},   // W2-L45 Full Production (T09 + T20 + T11 at TRUE speeds — the final rehearsal)
+    platforms:[ G(0,260), {x:260,y:500,w:560,h:40,kind:'belt',speed:85,dir:1}, G(820,740) ],
+    coins:[ C(130,462), C(400,462), C(620,462), C(900,462), C(1010,462), C(1150,462), C(1250,462), C(1380,462), C(1440,462) ],
+    traps:[ {type:'truffle',at:280,x:780,top:500,dir:-1,speed:180,repeat:8}, {type:'kernel',x:1010,top:500,period:3.8,off:0.5}, {type:'mixer',x:1330,y:330,top:500,len:180,period:5.4} ] },
+  { width:1560, start:{x:50,y:462}, door:{x:1495,y:500}, checkpoint:{x:1150,y:500},   // W2-L46 Cart Before the Horse (T14x2 two rails, opposite directions + T21)
+    platforms:[ G(0,1560), {x:180,y:452,w:60,h:12,kind:'wafer'}, {x:240,y:404,w:900,h:14,kind:'wafer'} ],
+    coins:[ C(140,462), C(400,462), C(500,366), C(700,462), C(800,366), C(1000,462), C(1280,462), C(1400,462), C(1470,462) ],
+    traps:[ {type:'cart',at:150,x:120,top:500,dir:1,speed:300,period:6.5}, {type:'cart',at:240,x:1100,top:404,dir:-1,speed:290,period:6.5},
+            {type:'press',x:1280,top:500,period:3.4,off:0,twin:true}, {type:'press',x:1400,top:500,period:3.4,off:1.7,twin:true} ] },
+  { width:1560, start:{x:50,y:462}, door:{x:1480,y:428}, checkpoint:{x:1290,y:500},   // W2-L47 Read It Backwards (T06x2 + T16; pull lever 1 reversed x3 -> S6)
+    platforms:[ G(0,430), {x:615,y:470,w:120,h:14,kind:'slide',leverId:'a',dx:-170,dy:0}, G(700,330), {x:1060,y:500,w:150,h:14,kind:'hslab',crackT:0.4}, G(1260,300), {x:1355,y:500,w:110,h:14,kind:'slide',leverId:'b',dx:0,dy:-72}, {x:1440,y:428,w:120,h:14,kind:'wafer'} ],
+    coins:[ C(150,462), C(300,462), C(450,432), C(600,462), C(800,462), C(950,462), C(1110,462), C(1300,462), C(1410,390), C(1480,390) ],
+    traps:[ {type:'lever',id:'a',x:300,top:500,secretPulls:3}, {type:'lever',id:'b',x:1300,top:500}, {type:'secret',id:'S6',x:288,y:404,w:48,h:96,needsLever:{id:'a',count:3}} ] },
+  { width:1560, start:{x:50,y:462}, door:{x:1490,y:500}, checkpoint:{x:900,y:500},   // W2-L48 The Floor Is Chocolate (T22 over two posts + T18 over the flood + T10 from behind)
+    platforms:[ G(0,1560), {x:1010,y:500,w:84,h:16,kind:'lift',rise:96,dx:210}, {x:1240,y:464,w:54,h:12,kind:'wafer'}, {x:1360,y:464,w:54,h:12,kind:'wafer'} ],
+    coins:[ C(150,462), C(420,462), C(700,462), C(950,462), C(1052,462), C(1267,426), C(1330,462), C(1387,426), C(1460,462) ],
+    traps:[ {type:'domino',x:300,top:500,n:4,dir:1,gap:56,h:118}, {type:'flood',x:1180,w:260,top:500,period:7.6,off:0,floodDur:2.2} ] },
+  { width:1600, start:{x:50,y:462}, door:{x:1525,y:500}, checkpoint:{x:980,y:500},   // W2-L49 Every Machine at Once (T21 + T12 + T17 + T19 in sequence, true speeds)
+    platforms:[ G(0,1600) ],
+    coins:[ C(150,462), C(400,462), C(560,462), C(720,462), C(830,462), C(1000,462), C(1205,462), C(1330,462), C(1420,462), C(1520,462) ],
+    traps:[ {type:'press',x:400,top:500,period:3.4,off:0,twin:true}, {type:'press',x:560,top:500,period:3.4,off:1.7,twin:true},
+            {type:'gusher',x:880,top:500,dir:-1,len:190,jetY:34,period:3.6,off:0.4}, {type:'rain',x:1120,w:170,top:500,period:3.8,off:0},
+            {type:'crane',x:1420,top:500,period:4.8,off:0.8} ] },
+  { width:1240, start:{x:50,y:462}, door:{x:1156,y:500}, boss:{dur:55,phases:[{name:'Shift Start',dur:20},{name:'Full Production',dur:20},{name:'Tempering',dur:15}]},   // W2-L50 THE TEMPERING TITAN
+    platforms:[ G(0,1240), {x:480,y:486,w:280,h:14,kind:'belt',speed:85,dir:1,flip:5,flipOff:0,bphase:1},
+                {x:350,y:486,w:110,h:14,kind:'melt',meltT:0.55,bphase:3}, {x:560,y:486,w:110,h:14,kind:'melt',meltT:0.55,bphase:3}, {x:770,y:486,w:110,h:14,kind:'melt',meltT:0.55,bphase:3} ],
+    coins:[ C(110,462), C(250,462), C(405,448), C(420,462), C(560,462), C(615,448), C(700,462), C(825,448), C(840,462), C(985,462), C(1100,462) ],
+    traps:[ {type:'press',x:420,top:500,period:3.4,off:0,bphase:1}, {type:'press',x:840,top:500,period:3.4,off:1.7,bphase:1},
+            {type:'mixer',x:620,y:325,top:500,len:185,period:5.0,bphase:2}, {type:'rain',x:900,w:170,top:500,period:3.8,off:0.5,bphase:2},
+            {type:'vent',x:300,top:500,period:3.4,off:0,bphase:2}, {type:'vent',x:950,top:500,period:3.4,off:1.7,bphase:2},
+            {type:'flood',x:1020,w:150,top:500,period:6.2,off:0,bphase:3} ] }
+];
+LEVELS.push.apply(LEVELS, LEVELS_W2); // global indices 50..99 = W2-L1..L50 (save/progress keys already world-scoped)
 
 // Secret levels (Step 6A): separate entries, reached only via hidden routes. Coins + completion, NO medals.
 var SECRET_META = [ // [name, tease]
   ['Under the Picnic Blanket', 'You fell through the picnic. The underside keeps its own crumbs.'],
   ['The Beehive Attic', 'Behind the honey wall, the bees keep a quiet attic. Mind the drips.'],
-  ['First Crumbs', 'Past the door everyone stops at. The first crumbs of the grove.']
+  ['First Crumbs', 'Past the door everyone stops at. The first crumbs of the grove.'],
+  ['The Sprinkle Vault', 'Behind the mixer vat, the factory keeps its sprinkle savings. Every pile bites.'],
+  ['Night Shift', 'The closed factory, emergency lights only. The belts dream in reverse.'],
+  ['Quality Control', 'The lever exam: everything here runs backwards. Read the signs.']
 ];
 var SECRET_LEVELS = [
   { id:'S1', width:1320, start:{x:50,y:462}, door:{x:1232,y:500},   // S1 (from L14)
@@ -1048,7 +1312,19 @@ var SECRET_LEVELS = [
   { id:'S3', width:1100, start:{x:50,y:462}, door:{x:1014,y:500}, sign:{x:520,text:'Home is where the crumbs are.'},  // S3 (from L43)
     platforms:[ G(0,1100), {x:350,y:428,w:110,h:14,kind:'sham'}, {x:600,y:428,w:110,h:14,kind:'sham'} ],
     coins:[ C(200,462), C(405,390), C(655,390), C(850,462), C(960,462) ],
-    traps:[] }
+    traps:[] },
+  { id:'S4', world:2, width:1240, start:{x:50,y:462}, door:{x:1156,y:500}, sign:{x:620,text:'Every pile bites. Take one, hop.'},  // S4 (from W2-L18, fake wall behind the vat)
+    platforms:[ G(0,1240) ],
+    coins:[ C(200,462), C(385,462), C(415,440), C(445,462), C(560,462), C(685,462), C(715,440), C(745,462), C(860,462), C(985,462), C(1015,440), C(1045,462) ],
+    traps:[ {type:'ambush',x:400,w:56,top:500}, {type:'ambush',x:700,w:56,top:500}, {type:'ambush',x:1000,w:56,top:500} ] },
+  { id:'S5', world:2, width:1320, start:{x:50,y:462}, door:{x:1230,y:500}, sign:{x:200,text:'Night shift. The machines dream too.'},  // S5 (from W2-L29, hidden floor at the reversed belt's end)
+    platforms:[ G(0,300), {x:300,y:500,w:500,h:40,kind:'belt',speed:95,dir:-1}, G(800,520) ],
+    coins:[ C(150,462), C(450,462), C(650,462), C(950,462), C(1150,462), C(1250,462) ],
+    traps:[ {type:'vent',x:950,top:500,period:3.4,off:0.6} ] },
+  { id:'S6', world:2, width:1260, start:{x:50,y:462}, door:{x:1170,y:500}, sign:{x:150,text:'QC: everything here runs backwards.'},  // S6 (from W2-L47, lever pulled reversed x3)
+    platforms:[ G(0,380), {x:600,y:470,w:120,h:14,kind:'slide',leverId:'q',dx:-120,dy:0}, G(700,60), {x:760,y:500,w:300,h:40,kind:'belt',speed:90,dir:-1}, G(1060,200) ],
+    coins:[ C(150,462), C(470,432), C(600,462), C(880,462), C(1150,462) ],
+    traps:[ {type:'lever',id:'q',x:250,top:500} ] }
 ];
 
 /* ================================================================
@@ -1077,6 +1353,8 @@ function platSolid(p){
   if (p.kind === 'taffyB') return p.state === 'idle' || p.state === 'tell';   // boss-clock blink (L30)
   if (p.kind === 'taffy') return p.state === 'idle';                           // present until it snaps
   if (p.kind === 'vine' || p.kind === 'cloud') return true;                    // always solid (they move you)
+  if (p.kind === 'belt' || p.kind === 'slide' || p.kind === 'lift') return true; // W2 carriers: always solid
+  if (p.kind === 'melt') return p.state === 'idle' || p.state === 'crack';       // W2 T01: solid until it falls
   return p.state === 'idle' || p.state === 'crack' || p.state === 'fusing';    // sham / hollow / bubble / cube / plain
 }
 function segDist(px, py, x1, y1, x2, y2){ // distance from point to segment
@@ -1094,6 +1372,7 @@ function solidsList(){
   var s = [];
   if (!L) return s;
   for (var i = 0; i < L.platforms.length; i++) { var p = L.platforms[i]; if (platSolid(p)) s.push({ x:p.x, y:p.y, w:p.w, h:p.h, owner:p }); }
+  for (var ci = 0; ci < L.traps.length; ci++) { var ct2 = L.traps[ci]; if (ct2.type === 'crane' && ct2.state === 'rest') s.push({ x: ct2.x - 28, y: ct2.top - 40, w: 56, h: 40, owner: ct2 }); } // W2 T19: a landed crane block is a (brief) floor
   return s;
 }
 function resolveCharSkin(){
@@ -1109,7 +1388,8 @@ function buildTraps(d, bankKey){
     var o = {}; for (var k in t) o[k] = t[k]; // copy ALL authored params (period, len, bphase, ...)
     o.state = 'idle'; o.t = 0; o.rise = 0; o.fired = false; o.tokIn = false;
     o.cyc = t.off || 0; o.onT = 0; o.lastFired = -99; o.armA = t.a0 || 0; o.firedCycle = -99; o.vol = 0; o._spawnedFor = -1;
-    if (o.type === 'dripper') o.fallDur = Math.sqrt(Math.max(30, (o.top - (o.y + 16))) / 1500);
+    if (o.type === 'dripper' || o.type === 'cdrip') o.fallDur = Math.sqrt(Math.max(30, (o.top - (o.y + 16))) / 1500);
+    o.pulls = 0; o.coolT = 0; o.signDx = 0; o.signDy = 0; o.burstLeft = 0; o.slabT = null; o.blockY = 0; o.dropY = (t.y || 0) + 30; o.armed = false;
     return o;
   });
 }
@@ -1118,15 +1398,19 @@ function buildPlatforms(d){
     var o = {}; for (var k in p) o[k] = p[k];
     if (o.fuse === undefined) o.fuse = 1.2;
     if (o.group === undefined) o.group = null;
+    if (o.pos === undefined) o.pos = 0;                       // slide platforms: lever position 0/1
+    if (o.beltOff === undefined) o.beltOff = 0;               // belt chevron scroll
+    if (o.dirNow === undefined) o.dirNow = o.dir || 1;        // belt current direction (after tells/flips)
+    if (o.beltTell === undefined) o.beltTell = 0;             // belt reversal tell timer
     o.state = 'idle'; o.t = 0; o.y0 = p.y; o.x0 = p.x; o.vy = 0; o.sink = 0; o.stretch = 0; o.creaked = false;
     return o;
   });
 }
 function setupLevel(idx){
-  var d = LEVELS[idx], meta = LEVEL_META[idx];
+  var d = LEVELS[idx], meta = metaFor(idx);
   L = {
-    idx: idx, name: meta[0], width: d.width, start: d.start, door: d.door, boss: d.boss || null,
-    parTime: PAR_TIMES[idx], deathPar: meta[2],
+    idx: idx, world: worldOfIdx(idx), name: meta[0], width: d.width, start: d.start, door: d.door, boss: d.boss || null,
+    parTime: parFor(idx), deathPar: meta[2],
     checkpoint: d.checkpoint || null, secretFall: d.secretFall || null, sign: d.sign || null, isSecret: null,
     platforms: buildPlatforms(d),
     coins: d.coins.map(function(c, i){ return { x:c.x, y:c.y, i:i, got:false, banked: !!((save.coinMap[idx] || [])[i]) }; }),
@@ -1152,7 +1436,7 @@ function setupSecret(id){
   var d = secretData(id); if (!d) return;
   var meta = secretMeta(id);
   L = {
-    idx: cur, name: meta[0], width: d.width, start: d.start, door: d.door, boss: null,
+    idx: cur, world: d.world || 1, name: meta[0], width: d.width, start: d.start, door: d.door, boss: null,
     parTime: 999, deathPar: 0,
     checkpoint: null, secretFall: null, sign: d.sign || null, isSecret: id,
     platforms: buildPlatforms(d),
@@ -1190,13 +1474,16 @@ function winSecret(){
   SFX.win(); SFX.secret();
   burst(L.door.x + 20, L.door.y - 40, ['#B388FF', '#FFF3B0', '#FF6FA5'], 30, 230);
   Analytics.push('secret_complete', { secret: id, first: first, coins: runCoins, deaths: levelDeaths });
+  var sw = (secretData(id) && secretData(id).world) || 1;
   var res = { secret: true, id: id, level: hostIdx + 1, name: meta[0], deaths: levelDeaths, time: levelTime,
               coins: runCoins, deathPar: 0, parTime: 999, best: null, wasSkipped: false,
-              secretsW1: w1SecretsFound(), secretsTotal: save.secretsFound };
+              secretsW1: w1SecretsFound(), secretsTotal: save.secretsFound,
+              secretWorld: sw, secretsInWorld: worldSecretsFound(sw) };
   trial = null;
   if (UIHooks.onWin) UIHooks.onWin(res);
 }
-function w1SecretsFound(){ var n = 0; if (!save.secretsDone) return 0; for (var i = 0; i < SECRET_LEVELS.length; i++) if (save.secretsDone[SECRET_LEVELS[i].id]) n++; return n; }
+function worldSecretsFound(w){ var n = 0; if (!save.secretsDone) return 0; for (var i = 0; i < SECRET_LEVELS.length; i++) { var sd = SECRET_LEVELS[i]; if (((sd.world || 1) === w) && save.secretsDone[sd.id]) n++; } return n; }
+function w1SecretsFound(){ return worldSecretsFound(1); }
 function startLevel(idx){
   cur = idx; levelDeaths = 0; runCoins = 0; reviveUsed = false;
   curSecret = null; hostIdx = -1;
@@ -1300,22 +1587,27 @@ function winLevel(){
   save.statuses[cur] = 'completed';
   if (earned > (save.medals[cur] || 0)) save.medals[cur] = earned;
   if (!wasCompleted || !save.bestTimes[cur] || time < save.bestTimes[cur]) save.bestTimes[cur] = Math.round(time * 10) / 10;
-  if (cur + 1 < 50 && levelStatus(cur + 1) === 'locked') save.statuses[cur + 1] = 'open';
+  unlockNextLevel();
   save.completions++;
   AdService.noteCompletion();
   persist();
   SFX.win();
   burst(L.door.x + 20, L.door.y - 40, ['#F5B942', '#FFF3B0', '#FF6FA5'], 26, 220);
   Analytics.push('level_complete', { level: cur + 1, deaths: levelDeaths, time: Math.round(time), medals: earned, coins: runCoins });
-  var res = { level: cur + 1, name: L.name, deaths: levelDeaths, time: time, medals: earned, coins: runCoins,
+  var res = { level: cur + 1, world: worldOfIdx(cur), levelInWorld: levelInWorld(cur), name: L.name, deaths: levelDeaths, time: time, medals: earned, coins: runCoins,
               deathPar: L.deathPar, parTime: L.parTime, best: save.bestTimes[cur], wasSkipped: false };
   trial = null; // a trial lasts exactly one level
   if (UIHooks.onWin) UIHooks.onWin(res);
 }
+function unlockNextLevel(){ // next node in this world; once a world is 50/50 cleared, the next world's first node opens too (whichever level completed the set)
+  var wN = worldOfIdx(cur), wEnd = wN * 50;
+  if (cur + 1 < wEnd && levelStatus(cur + 1) === 'locked') save.statuses[cur + 1] = 'open';
+  if (wEnd < LEVELS.length && worldCleared(wN) >= 50 && levelStatus(wEnd) === 'locked') save.statuses[wEnd] = 'open';
+}
 function doSkip(){
   var wasCompleted = save.statuses[cur] === 'completed';
   if (!wasCompleted) save.statuses[cur] = 'skipped';
-  if (cur + 1 < 50 && levelStatus(cur + 1) === 'locked') save.statuses[cur + 1] = 'open';
+  unlockNextLevel();
   persist();
   Analytics.push('skip_taken', { level: cur + 1, deaths: levelDeaths });
   trial = null;
@@ -1351,11 +1643,11 @@ function updatePlatforms(dt){
         p.t += dt;
         if (p.t >= 0.55) { p.state = 'gone'; p.t = 0; SFX.crumble(); burst(p.x + p.w/2, p.y + 8, ['#FFFFFF', '#FFF3B0', '#E8DCC8'], 8, 110); }
       } else if (p.state === 'gone') { p.t += dt; if (p.t > 2.2) { p.state = 'idle'; p.t = 0; } }
-    } else if (p.kind === 'hollow') { // T11 grass lid: quick crack, falls, respawns
-      if (p.state === 'idle' && stood) { p.state = 'crack'; p.t = 0; SFX.crrrk(); }
+    } else if (p.kind === 'hollow' || p.kind === 'hslab') { // T11 grass lid / W2 T16 hollow choc slab (crackT = authored break window, Bible 0.4s)
+      if (p.state === 'idle' && stood) { p.state = 'crack'; p.t = 0; SFX.crrrk(); if (p.kind === 'hslab') SFX.tok(); }
       else if (p.state === 'crack') {
         p.t += dt;
-        if (p.t >= 0.18) { p.state = 'falling'; p.vy = 0; SFX.crumble(); }
+        if (p.t >= (p.crackT !== undefined ? p.crackT : 0.18)) { p.state = 'falling'; p.vy = 0; SFX.crumble(); }
       } else if (p.state === 'falling') {
         var dyH = p.vy * dt; p.vy = Math.min(p.vy + 2600 * dt, 620); p.y += p.vy * dt;
         if (stood) player.y = p.y - player.h;
@@ -1409,6 +1701,55 @@ function updatePlatforms(dt){
         if (want === 'tell') SFX.creak();
         if (want === 'idle') burst(p.x + p.w / 2, p.y + 4, ['#FF9DBD', '#FFFFFF'], 5, 80);
       }
+    } else if (p.kind === 'melt') { // W2 T01 Melting Wafer Floor: stand -> sag/crack stages (meltT) -> falls -> respawns
+      if (p.state === 'idle' && stood) { p.state = 'crack'; p.t = 0; SFX.sizzle(); }
+      else if (p.state === 'crack') {
+        p.t += dt;
+        if (p.t >= (p.meltT || 1.1)) { p.state = 'falling'; p.vy = 0; SFX.crumble(); }
+      } else if (p.state === 'falling') {
+        p.vy = Math.min(p.vy + 2600 * dt, 620); p.y += p.vy * dt;
+        if (stood) player.y = p.y - player.h;
+        if (p.y > VH + 90) { p.state = 'gone'; p.t = 0; }
+      } else if (p.state === 'gone') { p.t += dt; if (p.t > 2.2) { p.y = p.y0; p.state = 'idle'; p.t = 0; p.vy = 0; } }
+    } else if (p.kind === 'belt') { // W2 T03 Conveyor: carries the rider; direction flips are ALWAYS told first (arrow flash + klunk, 0.45s)
+      var bActive = !p.bphase || (bossState && bossState.phase === p.bphase && !bossState.open);
+      if (bActive) {
+        var wantDir = p.dir || 1;
+        if (p.bossDir && bossState && !bossState.open) wantDir = (bossState.sec === 1 ? -1 : 1) * (p.dir || 1); // L20: boss sections drive the belt
+        else if (p.flip) { var phF = Math.floor((levelTime + (p.flipOff || 0)) / p.flip); wantDir = (phF % 2 === 0) ? (p.dir || 1) : -(p.dir || 1); }
+        if (wantDir !== p.dirNow && p.beltTell <= 0) { p.beltTell = 0.45; SFX.chunk(); } // the tell: chevrons flash, THEN it reverses
+        if (p.beltTell > 0) { p.beltTell -= dt; if (p.beltTell <= 0) p.dirNow = wantDir; }
+        p.beltOff += p.dirNow * (p.speed || 90) * dt;
+        if (stood) player.x += p.dirNow * (p.speed || 90) * dt; // the carry: authored speed, same for every rider
+      }
+    } else if (p.kind === 'slide') { // W2 T06 lever platform: glides between its two wired positions, carrying the rider
+      var txS = p.pos ? p.x0 + (p.dx || 0) : p.x0, tyS = p.pos ? p.y0 + (p.dy || 0) : p.y0;
+      var mxS = clamp(txS - p.x, -150 * dt, 150 * dt), myS = clamp(tyS - p.y, -150 * dt, 150 * dt);
+      if (mxS || myS) { p.x += mxS; p.y += myS; if (stood) { player.x += mxS; player.y += myS; } }
+    } else if (p.kind === 'lift') { // W2 T18 Drop Lift: rises (optionally travelling dx) -> hold with a shudder+twwang tell -> sudden drop -> rest
+      if (p.liftState === undefined) { p.liftState = 'wait'; p.liftT = 0; p.liftVy = 0; p.twangDone = false; }
+      p.liftT += dt;
+      var topXL = p.x0 + (p.dx || 0), topYL = p.y0 - (p.rise || 120);
+      if (p.liftState === 'wait') { if (p.liftT > 0.7) { p.liftState = 'rise'; p.liftT = 0; } }
+      else if (p.liftState === 'rise') {
+        var dxL = topXL - p.x, dyL2 = topYL - p.y, ddL = Math.sqrt(dxL * dxL + dyL2 * dyL2) || 1;
+        var stepL = Math.min(105 * dt, ddL);
+        var sxL = dxL / ddL * stepL, syL = dyL2 / ddL * stepL;
+        p.x += sxL; p.y += syL; if (stood) { player.x += sxL; player.y += syL; }
+        if (ddL <= 1.5) { p.x = topXL; p.y = topYL; p.liftState = 'hold'; p.liftT = 0; }
+      }
+      else if (p.liftState === 'hold') {
+        if (p.liftT > (p.holdT || 1.15) - 0.45 && !p.twangDone) { p.twangDone = true; SFX.twang(); } // the tell: cable twang + shudder (draw) 0.45s before the drop
+        if (p.liftT > (p.holdT || 1.15)) { p.liftState = 'drop'; p.liftT = 0; p.liftVy = 0; p.twangDone = false; }
+      }
+      else if (p.liftState === 'drop') {
+        p.liftVy = Math.min(p.liftVy + 3400 * dt, 980);
+        var bxL = p.x0 - p.x, byL = p.y0 - p.y, bdL = Math.sqrt(bxL * bxL + byL * byL) || 1;
+        var bstL = Math.min(p.liftVy * dt, bdL);
+        p.x += bxL / bdL * bstL; p.y += byL / bdL * bstL;
+        if (stood) { player.x = clamp(player.x, p.x - 6, p.x + p.w - player.w + 6); player.y = p.y - player.h; }
+        if (bdL <= 1.5) { p.x = p.x0; p.y = p.y0; p.liftState = 'wait'; p.liftT = 0; if (stood) SFX.land(); }
+      }
     }
   }
 }
@@ -1453,7 +1794,8 @@ function sweeperStep(t, dt, active){
     t.armA += clamp(d, -2.4 * dt, 2.4 * dt);
   }
 }
-function dripperStep(t, dt, active){ // deterministic cycle: shadow first, accelerating plips, then the drop
+function dripperStep(t, dt, active, cause){ // deterministic cycle: shadow first, accelerating plips, then the drop
+  cause = cause || 'honey-drop';
   if (!active) { t.state = 'idle'; return; }
   var period = t.period || 2.6;
   t.cyc += dt;
@@ -1467,10 +1809,10 @@ function dripperStep(t, dt, active){ // deterministic cycle: shadow first, accel
     t.state = 'fall';
     var tau = ph - fallStart;
     t.dropY = Math.min(t.y + 16 + 1500 * tau * tau, t.top - 6);
-    if (!player.dead && player.invulnT <= 0 && overlap(player, { x: t.x - 9, y: t.dropY - 14, w: 18, h: 18 })) die('honey-drop');
+    if (!player.dead && player.invulnT <= 0 && overlap(player, { x: t.x - 9, y: t.dropY - 14, w: 18, h: 18 })) die(cause);
   } else if (ph >= period - 0.4 && ph < splatEnd) {
     t.state = 'splat'; t.dropY = t.top - 4;
-    if (!player.dead && player.invulnT <= 0 && overlap(player, { x: t.x - 22, y: t.top - 9, w: 44, h: 9 })) die('honey-drop');
+    if (!player.dead && player.invulnT <= 0 && overlap(player, { x: t.x - 22, y: t.top - 9, w: 44, h: 9 })) die(cause);
   } else t.state = 'idle';
 }
 function fountainStep(t, dt, active){ // bubbles rise 0.5s, then the column; long honest off-phase
@@ -1486,6 +1828,239 @@ function fountainStep(t, dt, active){ // bubbles rise 0.5s, then the column; lon
     if (!player.dead && player.invulnT <= 0 && overlap(player, { x: t.x - 10, y: t.top - (t.h || 150), w: 20, h: (t.h || 150) })) die('fizz-fountain');
   } else t.state = 'idle';
 }
+/* -------- Step 6B trap machines (World 2 — Worlds Bible tells: 0.3–0.5s, visual + audio) -------- */
+function pressStep(t, dt, active){ // T04/T21 Choc Press: long up-rest, tremble + growing shadow tell (0.45s), slam, down, rise. Twin: every 3rd cycle runs long — the lamp counts it in, honestly
+  if (!active) { t.state = 'idle'; return; }
+  var P = t.period || 3.4, drop = t.drop || 150, hw = t.hw || 38;
+  if (t.state === 'idle') { t.state = 'up'; t.t = -(t.off || 0); t.cycN = 0; t.headBot = t.top - drop; }
+  t.t += dt;
+  var upDur = P - 1.5 + ((t.twin && (t.cycN || 0) % 3 === 2) ? 0.7 : 0);
+  if (t.state === 'up') { t.headBot = t.top - drop; if (t.t >= upDur) { setTrapState(t, 'tell'); SFX.hiss(); } }
+  else if (t.state === 'tell') { if (t.t >= 0.45) { setTrapState(t, 'slam'); SFX.clank(); } }
+  else if (t.state === 'slam') {
+    var frS = Math.min(1, t.t / 0.13);
+    t.headBot = (t.top - drop) + drop * frS;
+    if (t.t >= 0.13) { setTrapState(t, 'down'); t.headBot = t.top; SFX.boom(); if (save.settings.shake) shakeT = Math.max(shakeT, 0.12); }
+  }
+  else if (t.state === 'down') { t.headBot = t.top; if (t.t >= 0.5) setTrapState(t, 'rise'); }
+  else if (t.state === 'rise') {
+    var frR = Math.min(1, t.t / 0.45);
+    t.headBot = t.top - drop * frR;
+    if (t.t >= 0.45) { setTrapState(t, 'up'); t.cycN = (t.cycN || 0) + 1; }
+  }
+  if ((t.state === 'slam' || t.state === 'down' || t.state === 'rise') && !player.dead && player.invulnT <= 0) {
+    if (overlap(player, { x: t.x - hw + 4, y: t.headBot - 56, w: hw * 2 - 8, h: 56 })) die(t.twin ? 'twin-press' : 'choc-press');
+  }
+}
+function ventStep(t, dt, active){ // T07 Steam Vent: light wisps + kettle fweet (0.5s tell), then the jet
+  if (!active) { t.state = 'idle'; return; }
+  var period = t.period || 3.2;
+  t.cyc += dt;
+  var ph = t.cyc % period;
+  if (ph >= period - 1.5 && ph < period - 1.0) { if (t.state !== 'tell') SFX.fweet(); t.state = 'tell'; }
+  else if (ph >= period - 1.0) {
+    t.state = 'blast';
+    if (!player.dead && player.invulnT <= 0 && overlap(player, { x: t.x - 11, y: t.top - (t.h || 132), w: 22, h: (t.h || 132) })) die('steam-vent');
+  } else t.state = 'idle';
+}
+function gusherStep(t, dt, active){ // T12 Pipe-Burst Gusher: pipe swells + creaks (0.5s tell), then a short sideways jet
+  if (!active) { t.state = 'idle'; return; }
+  var period = t.period || 3.6;
+  t.cyc += dt;
+  var ph = t.cyc % period;
+  if (ph >= period - 1.3 && ph < period - 0.8) { if (t.state !== 'tell') SFX.creak(); t.state = 'tell'; }
+  else if (ph >= period - 0.8) {
+    t.state = 'jet';
+    var my = t.top - (t.jetY || 56), len = t.len || 190, dir = t.dir || -1;
+    var jx = dir > 0 ? t.x : t.x - len;
+    if (!player.dead && player.invulnT <= 0 && overlap(player, { x: jx, y: my - 11, w: len, h: 22 })) die('gusher');
+  } else t.state = 'idle';
+}
+function teethStep(t, dt, active){ // T15 Grinder Teeth: quiet chatter rehearsal (0.45s tell), then the snap; long closed (safe) window
+  if (!active) { t.state = 'idle'; return; }
+  var period = t.period || 3.2;
+  t.cyc += dt;
+  var ph = t.cyc % period;
+  if (ph >= period - 1.45 && ph < period - 1.0) { if (t.state !== 'tell') SFX.chomp(); t.state = 'tell'; }
+  else if (ph >= period - 1.0) {
+    t.state = 'snap';
+    if (!player.dead && player.invulnT <= 0 && overlap(player, { x: t.x + 3, y: t.top - 16, w: t.w - 6, h: 16 })) die('grinder-teeth');
+  } else t.state = 'idle';
+}
+function rainStep(t, dt, active){ // T17 Sprinkle Rain: hopper rattles + first sprinkles fall (0.5s tell), then rain over the Rot-rim strip; cover shelters
+  if (!active) { t.state = 'idle'; return; }
+  var period = t.period || 3.8;
+  t.cyc += dt;
+  var ph = t.cyc % period;
+  if (ph >= period - 1.6 && ph < period - 1.1) { if (t.state !== 'tell') SFX.clank(); t.state = 'tell'; }
+  else if (ph >= period - 1.1) {
+    t.state = 'rain';
+    if (!player.dead && player.invulnT <= 0) {
+      var pcxR = player.x + 14, feetR = player.y + player.h;
+      if (pcxR > t.x && pcxR < t.x + t.w && feetR > t.top - 46 && feetR < t.top + 26) {
+        var sheltered = false, solidsR = solidsList();
+        for (var si = 0; si < solidsR.length; si++) { var sp = solidsR[si]; if (sp.y + sp.h <= player.y - 6 && sp.y > t.top - 215 && pcxR > sp.x - 4 && pcxR < sp.x + sp.w + 4) { sheltered = true; break; } }
+        if (!sheltered) die('sprinkle-rain');
+      }
+    }
+  } else t.state = 'idle';
+}
+function floodStep(t, dt, active){ // T22 Tempering Flood: chocolate bulges + glup-glup accelerates (0.5s tell), then the wave; the upper ledge is always safe
+  if (!active) { t.state = 'idle'; return; }
+  var period = t.period || 6.4, fd = t.floodDur || 1.2;
+  t.cyc += dt;
+  var ph = t.cyc % period;
+  if (ph >= period - fd - 0.5 && ph < period - fd) { if (t.state !== 'tell') SFX.glup(); t.state = 'tell'; }
+  else if (ph >= period - fd) {
+    if (t.state !== 'flood') SFX.splash();
+    t.state = 'flood';
+    if (!player.dead && player.invulnT <= 0) {
+      var pcxF2 = player.x + 14, feetF = player.y + player.h;
+      if (pcxF2 > t.x - 4 && pcxF2 < t.x + t.w + 4 && feetF > t.top - 30) die('tempering-flood');
+    }
+  } else t.state = 'idle';
+}
+function mixerStep(t, dt, active){ // T11 Mixer Blade: arm stops and jerks + motor builds (0.45s tell), then sweeps at fixed speed; vat edges are safe
+  if (!active) {
+    t.state = 'idle'; t.fired = false;
+    var parkM = 3.14, dM = parkM - t.armA; while (dM > 3.14) dM -= 6.283; while (dM < -3.14) dM += 6.283; t.armA += clamp(dM, -2.4 * dt, 2.4 * dt);
+    return;
+  }
+  if (!t.fired) {
+    var pcxM = player.x + 14;
+    if (Math.abs(pcxM - t.x) < 480 && Math.abs((player.y + player.h) - t.top) < 140) { t.fired = true; setTrapState(t, 'tell'); SFX.humm(); }
+    else { var parkM2 = 3.14, dM2 = parkM2 - t.armA; while (dM2 > 3.14) dM2 -= 6.283; while (dM2 < -3.14) dM2 += 6.283; t.armA += clamp(dM2, -2.4 * dt, 2.4 * dt); }
+    return;
+  }
+  if (t.state === 'tell') { t.t += dt; t.armA = 3.14 + Math.sin(t.t * 42) * 0.05; if (t.t >= 0.45) setTrapState(t, 'on'); return; }
+  t.state = 'on';
+  t.armA += (t.dir || 1) * 6.283 / (t.period || 5.2) * dt;
+  if (!player.dead && player.invulnT <= 0) {
+    var hs = sweeperHeads(t);
+    for (var i = 1; i < 3; i++) if (circleBox(hs[i].x, hs[i].y, hs[i].fr === 1 ? 20 : 12, player)) { die('mixer-blade'); return; }
+  }
+}
+function cartStep(t, dt, active){ // T14 Cocoa Cart: lamp glows at the rail end + wheels heard first (0.5s tell), then the trolley rushes
+  if (!active) { t.state = 'idle'; return; }
+  var pcxC = player.x + 14, inLane = pcxC >= t.at;
+  if (t.state === 'idle') {
+    if (!player.dead && inLane) { setTrapState(t, 'tell'); SFX.rumble(); }
+  } else if (t.state === 'tell') {
+    t.t += dt;
+    if (t.t >= 0.5) {
+      setTrapState(t, 'cool'); t.lastFired = levelTime;
+      spawnBall({ x: t.x, y: t.top - 44, w: 64, h: 44, vx: (t.dir || 1) * (t.speed || 300), vy: 0, rot: 0, passed: false, cart: true, src: t });
+      SFX.rumble();
+    }
+  } else if (t.state === 'cool') {
+    var hasCart = false;
+    for (var bi2 = 0; bi2 < balls.length; bi2++) if (balls[bi2].src === t) hasCart = true;
+    if (!hasCart && levelTime - t.lastFired > (t.period || 6) && inLane) setTrapState(t, 'idle');
+  }
+}
+function jarStep(t, dt, active){ // T05 Sprinkle Jar: wobbles + sprinkles rattle inside + shadow lands first (0.45s tell); falls straight; shards bite briefly
+  if (!active) { t.state = 'idle'; return; }
+  var pcxJ = player.x + 14;
+  if (t.state === 'idle') {
+    if (!player.dead && Math.abs(pcxJ - t.x) < 150 && (player.y + player.h) > t.y + 60) { setTrapState(t, 'tell'); SFX.tink(); }
+  } else if (t.state === 'tell') {
+    t.t += dt;
+    if (t.t >= 0.45) { setTrapState(t, 'fall'); t.dropY = t.y + 30; t.dropVy = 0; SFX.crumble(); }
+  } else if (t.state === 'fall') {
+    t.dropVy = Math.min((t.dropVy || 0) + 2600 * dt, 900); t.dropY += t.dropVy * dt;
+    if (!player.dead && player.invulnT <= 0 && overlap(player, { x: t.x - 13, y: t.dropY, w: 26, h: 30 })) { die('sprinkle-jar'); return; }
+    if (t.dropY + 30 >= t.top) { setTrapState(t, 'shards'); SFX.boom(); burst(t.x, t.top - 6, ['#FF8FB8', '#7ED0FF', '#FFF3B0'], 10, 130); }
+  } else if (t.state === 'shards') {
+    if (!player.dead && player.invulnT <= 0 && overlap(player, { x: t.x - 26, y: t.top - 10, w: 52, h: 10 })) { die('sprinkle-jar'); return; }
+    t.t += dt;
+    if (t.t >= 0.35) { if (t.repeat) setTrapState(t, 'cool'); else setTrapState(t, 'done'); }
+  } else if (t.state === 'cool') {
+    t.t += dt;
+    if (t.t >= (t.repeat || 3.4)) setTrapState(t, 'idle');
+  }
+}
+function dominoStep(t, dt, active){ // T10 Scaffold Domino: first piece tilts + bolts drop (0.4s tell), then the run falls from one side, slab by slab
+  if (!active) { t.state = 'idle'; return; }
+  if (t.state === 'idle') {
+    var go = false;
+    if (t.after) { for (var li = 0; li < L.traps.length; li++) if (L.traps[li].id === t.after && L.traps[li].state === 'done') go = true; }
+    else {
+      var pcxD = player.x + 14, dirD = t.dir || 1;
+      var nearX = dirD > 0 ? t.x : t.x + dirD * ((t.n || 4) - 1) * (t.gap || 56);
+      if (Math.abs(pcxD - nearX) < (dirD > 0 ? 60 : 300) && Math.abs((player.y + player.h) - t.top) < 60) go = true;
+    }
+    if (go && !player.dead) { setTrapState(t, 'tell'); SFX.clank(); t.slabT = []; for (var si2 = 0; si2 < (t.n || 4); si2++) t.slabT.push(-1); }
+  } else if (t.state === 'tell') {
+    t.t += dt;
+    if (t.t >= 0.4) setTrapState(t, 'run');
+  } else if (t.state === 'run') {
+    t.t += dt;
+    var allDown = true;
+    for (var i = 0; i < (t.n || 4); i++) {
+      var st = t.t - i * 0.3;
+      t.slabT[i] = st;
+      if (st < 0.62) allDown = false;
+      if (st > 0 && st < 0.62 && !player.dead && player.invulnT <= 0) {
+        var sx = t.x + (t.dir || 1) * i * (t.gap || 56), lenD = t.h || 118;
+        var th = Math.min(1, st / 0.5) * 1.45;
+        var tipX = sx + (t.dir || 1) * Math.sin(th) * lenD, tipY = t.top - Math.cos(th) * lenD;
+        if (overlap(player, { x: Math.min(sx, tipX) - 4, y: tipY - 4, w: Math.abs(tipX - sx) + 42, h: (t.top - tipY) + 4 })) { die('domino'); return; }
+      }
+    }
+    if (allDown) setTrapState(t, 'done');
+  }
+}
+function kernelPop(t){
+  SFX.pop(); SFX.boom();
+  burst(t.x, t.top - 14, ['#FFF3B0', '#FFFFFF', '#F5B942'], 10, 120);
+  var vxs = [-80, 0, 80];
+  for (var vi = 0; vi < 3; vi++) spawnBall({ x: t.x - 9, y: t.top - 26, w: 18, h: 18, vx: vxs[vi], vy: -350, rot: 0, passed: false, pop: true, gravScale: 0.5, src: t });
+}
+function kernelStep(t, dt, active){ // T20 Popcorn Kernel: swells + tick-tick (0.65s tell), a silence (0.25s — part of the tell), then POP: slow fixed arcs
+  if (!active) { t.state = 'idle'; return; }
+  var period = t.period || 3.8;
+  t.cyc += dt;
+  var ph = t.cyc % period, cycK = Math.floor(t.cyc / period);
+  var pcxK = player.x + 14;
+  if (Math.abs(pcxK - t.x) < 230 && Math.abs((player.y + player.h) - t.top) < 90) t.armed = true;
+  if (ph >= period - 0.9 && ph < period - 0.25) { if (t.state !== 'tell') SFX.tik(); t.state = 'tell'; }
+  else if (ph >= period - 0.25) { t.state = 'prime'; }
+  else {
+    if ((t.state === 'prime' || t.state === 'tell') && t.armed && t.firedCycle !== cycK) {
+      t.firedCycle = cycK;
+      kernelPop(t);
+      if (t.cluster) t.burstLeft = (t.cluster || 1) - 1;
+    }
+    if (t.state === 'prime' || t.state === 'tell') t.armed = false;
+    t.state = 'idle';
+  }
+  if (t.burstLeft > 0) {
+    t.burstT = (t.burstT || 0) + dt;
+    if (t.burstT >= 0.25) { t.burstT = 0; t.burstLeft--; kernelPop(t); }
+  }
+}
+function craneStep(t, dt, active){ // T19 Fudge Crane: hook sways, chain clink-clink accelerates + shadow grows (0.5s tell), block falls, rests as a floor, lifts away
+  if (!active) { t.state = 'idle'; return; }
+  var hangY = t.top - (t.hang || 185);
+  if (t.state === 'idle') {
+    t.blockY = hangY;
+    if (!player.dead && Math.abs((player.x + 14) - t.x) < 300 && Math.abs((player.y + player.h) - t.top) < 90) { setTrapState(t, 'tell'); SFX.clank(); }
+  } else if (t.state === 'tell') {
+    t.t += dt;
+    if (t.t >= 0.5) { setTrapState(t, 'drop'); t.blockVy = 0; }
+  } else if (t.state === 'drop') {
+    t.blockVy = Math.min((t.blockVy || 0) + 3400 * dt, 1000); t.blockY += t.blockVy * dt;
+    if (!player.dead && player.invulnT <= 0 && overlap(player, { x: t.x - 25, y: t.blockY, w: 50, h: 38 })) { die('crane-block'); return; }
+    if (t.blockY + 40 >= t.top) { t.blockY = t.top - 40; setTrapState(t, 'rest'); SFX.boom(); burst(t.x, t.top - 4, ['#C9A86A', '#8A5A2B'], 8, 110); }
+  } else if (t.state === 'rest') {
+    t.t += dt;
+    if (t.t >= 2.4) setTrapState(t, 'lift');
+  } else if (t.state === 'lift') {
+    t.blockY -= 190 * dt;
+    t.t += dt;
+    if (t.blockY <= hangY || t.t > 1.2) { t.blockY = hangY; setTrapState(t, 'idle'); }
+  }
+}
 function updateTraps(dt){
   var pcx = player.x + player.w / 2;
   for (var i = 0; i < L.traps.length; i++) {
@@ -1493,17 +2068,17 @@ function updateTraps(dt){
     if (t.boss !== undefined && t.boss !== null) continue;      // boss sections drive these
     if (t.bossSec !== undefined && t.bossSec !== null) continue; // L40 boss-clock traps
     if (t.bphase !== undefined && t.bphase !== null) continue;   // L50 phase traps
-    if (t.type === 'spikes' || t.type === 'rotbloom') {
+    if (t.type === 'spikes' || t.type === 'rotbloom' || t.type === 'ambush') {
       var tellT = t.type === 'rotbloom' ? 0.5 : 0.4, upT = t.type === 'rotbloom' ? 1.2 : 1.0, trig = t.type === 'rotbloom' ? 90 : 55;
       if (t.state === 'idle') {
         var near = Math.abs(pcx - (t.x + t.w / 2)) < t.w / 2 + trig && player.y + player.h > t.top - 52 && player.y + player.h < t.top + 24;
-        if (near && !player.dead) { setTrapState(t, 'tell'); SFX.sproing(); if (t.type === 'rotbloom') SFX.humm(); }
+        if (near && !player.dead) { setTrapState(t, 'tell'); if (t.type === 'ambush') SFX.klink(); else SFX.sproing(); if (t.type === 'rotbloom') SFX.humm(); }
       } else if (t.state === 'tell') { t.t += dt; t.rise = Math.min(0.25, t.t / tellT * 0.25); if (t.t >= tellT) { setTrapState(t, 'up'); SFX.spikes(); } }
       else if (t.state === 'up') { t.t += dt; t.rise = Math.min(1, t.rise + dt * 6); if (t.t >= upT) setTrapState(t, 'down'); }
       else if (t.state === 'down') { t.t += dt; t.rise = Math.max(0, t.rise - dt * 6); if (t.rise <= 0) { setTrapState(t, 'cool'); } }
       else if (t.state === 'cool') { t.t += dt; if (t.t >= 0.6) setTrapState(t, 'idle'); }
-      spikeKillCheck(t, t.type === 'rotbloom' ? 'rotbloom' : 'gummy-spikes');
-    } else if (t.type === 'gumball') {
+      spikeKillCheck(t, t.type === 'rotbloom' ? 'rotbloom' : (t.type === 'ambush' ? 'sprinkle-ambush' : 'gummy-spikes'));
+    } else if (t.type === 'gumball' || t.type === 'truffle') {
       if (t.bossMode) continue; // phase spawners are boss-driven
       if (!t.fired && pcx >= t.at) {
         t.fired = true; setTrapState(t, 'tell'); SFX.rumble();
@@ -1512,7 +2087,8 @@ function updateTraps(dt){
         t.t += dt;
         if (t.t >= 0.45) {
           setTrapState(t, t.repeat ? 'cool' : 'done'); t.lastFired = levelTime;
-          spawnBall({ x: t.x, y: t.top - 48, w: 48, h: 48, vx: (t.dir || -1) * (t.speed || 200), vy: 0, rot: 0, passed: false, src: t });
+          var isTruf = t.type === 'truffle', bsz = isTruf ? (t.small ? 44 : 56) : 48;
+          spawnBall({ x: t.x, y: t.top - bsz, w: bsz, h: bsz, vx: (t.dir || -1) * (t.speed || 200), vy: 0, rot: 0, passed: false, src: t, truffle: isTruf });
           SFX.rumble();
         }
       } else if (t.state === 'cool' && t.repeat) { // repeating lane (L28): re-arms while the player is in the lane
@@ -1525,6 +2101,8 @@ function updateTraps(dt){
       sweeperStep(t, dt, !!t.fired);
     } else if (t.type === 'dripper') { // T08 Honey Dripper
       dripperStep(t, dt, true);
+    } else if (t.type === 'cdrip') { // W2 T08 Caramel Drip: same honest clock (form, glup, shadow), caramel drop
+      dripperStep(t, dt, true, 'caramel-drip');
     } else if (t.type === 'sneeze') { // T09 Sneeze-Blossom: gust pushes, never kills
       var periodSn = t.period || 3.6;
       t.cyc += dt;
@@ -1616,8 +2194,44 @@ function updateTraps(dt){
           spawnBall({ x: t.x + (t.dir || -1) * 30 - 8, y: t.top - 54, w: 16, h: 16, vx: (t.dir || -1) * 290, vy: -240, rot: 0, passed: false, dart: true, gravScale: 0.45 });
         }
       } else t.state = 'idle';
-    } else if (t.type === 'secret') { // hidden doorway (L27 wall / L43 over-door ledge)
-      if (!player.dead && overlap(player, { x: t.x, y: t.y, w: t.w, h: t.h })) { startSecret(t.id); return; }
+    } else if (t.type === 'secret') { // hidden doorway (L27 wall / L43 over-door ledge / W2 routes)
+      var sOpen = true;
+      if (t.needsLever) { // W2-L47: the doorway wakes only after the lever's price is paid (pulls counted per-run)
+        sOpen = false;
+        for (var nli = 0; nli < L.traps.length; nli++) { var lt2 = L.traps[nli]; if (lt2.type === 'lever' && lt2.id === t.needsLever.id && (lt2.pulls || 0) >= (t.needsLever.count || 3)) sOpen = true; }
+      }
+      if (sOpen && !player.dead && overlap(player, { x: t.x, y: t.y, w: t.w, h: t.h })) { startSecret(t.id); return; }
+    } else if (t.type === 'press') { pressStep(t, dt, true);
+    } else if (t.type === 'vent') { ventStep(t, dt, true);
+    } else if (t.type === 'gusher') { gusherStep(t, dt, true);
+    } else if (t.type === 'teeth') { teethStep(t, dt, true);
+    } else if (t.type === 'rain') { rainStep(t, dt, true);
+    } else if (t.type === 'flood') { floodStep(t, dt, true);
+    } else if (t.type === 'mixer') { mixerStep(t, dt, true);
+    } else if (t.type === 'cart') { cartStep(t, dt, true);
+    } else if (t.type === 'jar') { jarStep(t, dt, true);
+    } else if (t.type === 'domino') { dominoStep(t, dt, true);
+    } else if (t.type === 'kernel') { kernelStep(t, dt, true);
+    } else if (t.type === 'crane') { craneStep(t, dt, true);
+    } else if (t.type === 'snare') { // W2 T13 Caramel Snare: slows (handled in stepPlayer), never kills
+      /* visual only */
+    } else if (t.type === 'lever') { // W2 T06 Backwards Lever: touch to pull; signage is computed from the REAL wiring every frame
+      if (t.coolT > 0) t.coolT -= dt;
+      var linkedLv = null;
+      for (var lpi = 0; lpi < L.platforms.length; lpi++) if (L.platforms[lpi].kind === 'slide' && L.platforms[lpi].leverId === t.id) { linkedLv = L.platforms[lpi]; break; }
+      if (linkedLv) {
+        var sgnL = linkedLv.pos ? -1 : 1;
+        var rawDx = sgnL * (linkedLv.dx || 0), rawDy = sgnL * (linkedLv.dy || 0);
+        var mL = Math.max(Math.abs(rawDx), Math.abs(rawDy));
+        if (mL > 0) { t.signDx = Math.round(rawDx / mL); t.signDy = Math.round(rawDy / mL); }
+      }
+      if (!player.dead && t.coolT <= 0 && overlap(player, { x: t.x - 12, y: t.top - 54, w: 52, h: 54 })) {
+        t.coolT = 0.9; t.pulls++;
+        SFX.chunk();
+        for (var lpj = 0; lpj < L.platforms.length; lpj++) { var lp2 = L.platforms[lpj]; if (lp2.kind === 'slide' && lp2.leverId === t.id) lp2.pos = lp2.pos ? 0 : 1; }
+        if (t.secretPulls && t.pulls >= t.secretPulls) toast('Something rumbled open… ⭐');
+        burst(t.x + 14, t.top - 40, ['#F5B942', '#FFF3B0'], 6, 90);
+      }
     } else if (t.type === 'fakeDoor') {
       var nearF = Math.abs(pcx - (t.x + 23)) < 95 && Math.abs((player.y + player.h) - t.y) < 30;
       if (nearF && !t.tokIn) { t.tokIn = true; SFX.tok(); }
@@ -1645,6 +2259,7 @@ function updateBalls(dt){
       if (b.vy >= 0 && (b.y + b.h) - s.y < 26 + Math.max(0, b.vy * dt)) {
         b.y = s.y - b.h;
         if (b.jb && b.vy > 0 && !b.rolling && !b.settled) { b.rolling = true; b.vx = (b.jbDir || 1) * (b.jbSpeed || 150); } // jawbreaker lands, then rolls ONE way
+        if (b.pop) { b.settled = true; b.vx = 0; } // W2 T20: a landed kernel is just popcorn — harmless
         b.vy = 0;
       }
       else if (b.vy < 0 && (s.y + s.h) - b.y < 26) { b.y = s.y + s.h; b.vy = 0; }
@@ -1654,7 +2269,7 @@ function updateBalls(dt){
     if (b.y > VH + 80 || b.x < -80 || b.x > L.width + 80) { balls.splice(i, 1); continue; }
     if (!player.dead && player.invulnT <= 0 && !b.settled) {
       var inset = b.w * 0.15;
-      if (overlap(player, { x: b.x + inset, y: b.y + inset, w: b.w - inset * 2, h: b.h - inset * 2 })) { die(b.dart ? 'berry-dart' : (b.jb ? 'jawbreaker' : (b.shot ? 'seed-shot' : 'gumball'))); return; }
+      if (overlap(player, { x: b.x + inset, y: b.y + inset, w: b.w - inset * 2, h: b.h - inset * 2 })) { die(b.dart ? 'berry-dart' : (b.jb ? 'jawbreaker' : (b.shot ? 'seed-shot' : (b.cart ? 'cocoa-cart' : (b.truffle ? 'rolling-truffle' : (b.pop ? 'popcorn' : 'gumball')))))); return; }
       if (!b.passed && Math.abs((player.x + 14) - (b.x + b.w / 2)) < 64 && Math.abs((player.y + 19) - (b.y + b.h / 2)) < 76) {
         b.passed = true; slowmoT = Math.max(slowmoT, 0.22); // near-miss slow-mo
       }
@@ -1690,7 +2305,7 @@ function updateBoss(dt){
       bossResumeT = bossPhaseStart(ph); // the between-phase checkpoint
       toast('⚔ PHASE ' + ph + ': ' + bossState.phaseName);
       SFX.chime();
-      for (var pi = 0; pi < L.traps.length; pi++) { var pt = L.traps[pi]; if (pt.bphase) { pt.state = 'idle'; pt.t = 0; pt.cyc = pt.off || 0; pt.onT = 0; pt.rise = 0; pt.firedCycle = -99; pt._spawnedFor = -1; } }
+      for (var pi = 0; pi < L.traps.length; pi++) { var pt = L.traps[pi]; if (pt.bphase) { pt.state = 'idle'; pt.t = 0; pt.cyc = pt.off || 0; pt.onT = 0; pt.rise = 0; pt.firedCycle = -99; pt._spawnedFor = -1; pt.fired = false; pt.armed = false; } }
     }
   }
   if (B.checkpointAt && !bossState.cpHit && bossState.t >= B.checkpointAt) { // L30/L40 mid-gauntlet checkpoint
@@ -1714,7 +2329,7 @@ function updateBoss(dt){
     var gated = (t.boss !== undefined && t.boss !== null) || (t.bossSec !== undefined && t.bossSec !== null) || (t.bphase !== undefined && t.bphase !== null);
     if (!gated) continue;
     var active = trapBossActive(t);
-    if (t.type === 'spikes' || t.type === 'rotbloom') {
+    if (t.type === 'spikes' || t.type === 'rotbloom' || t.type === 'ambush') {
       var act = active;
       if (t.bphase && t.type === 'spikes') act = active && (((levelTime + (t.off || 0)) % 3.3) < 2.0); // P1 patches cycle, staggered
       if (t.bphase && t.type === 'rotbloom') { // P3 doorstep bloom arms on proximity, like the field version
@@ -1739,6 +2354,19 @@ function updateBoss(dt){
         }
       }
     }
+    else if (t.type === 'press') pressStep(t, dt, active);
+    else if (t.type === 'vent') ventStep(t, dt, active);
+    else if (t.type === 'gusher') gusherStep(t, dt, active);
+    else if (t.type === 'teeth') teethStep(t, dt, active);
+    else if (t.type === 'rain') rainStep(t, dt, active);
+    else if (t.type === 'flood') floodStep(t, dt, active);
+    else if (t.type === 'mixer') mixerStep(t, dt, active);
+    else if (t.type === 'cart') cartStep(t, dt, active);
+    else if (t.type === 'jar') jarStep(t, dt, active);
+    else if (t.type === 'domino') dominoStep(t, dt, active);
+    else if (t.type === 'kernel') kernelStep(t, dt, active);
+    else if (t.type === 'crane') craneStep(t, dt, active);
+    else if (t.type === 'cdrip') dripperStep(t, dt, active, 'caramel-drip');
     else if (t.type === 'fakeDoor') { // L50 P3 lying door
       if (active && !player.dead) {
         var pcxF = player.x + 14;
@@ -1774,9 +2402,18 @@ function playerInMire(){
   }
   return false;
 }
+function playerInSnare(){ // W2 T13: caramel strands stick like mire — slow, never death
+  if (!player.grounded) return false;
+  var feet = player.y + player.h, cx = player.x + 14;
+  for (var i = 0; i < L.traps.length; i++) {
+    var t = L.traps[i];
+    if (t.type === 'snare' && Math.abs(feet - t.top) < 8 && cx > t.x - 6 && cx < t.x + t.w + 6) return true;
+  }
+  return false;
+}
 function stepPlayer(dt){
   var dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-  var inMireNow = playerInMire();
+  var inMireNow = playerInMire() || playerInSnare();
   var gusting = player.gustT > 0;
   var MAXS = inMireNow ? 120 : (gusting ? 345 : 266); // T15 mire: 45% speed; T09 gust: blown past cap
   if (dir !== 0) {
@@ -1935,7 +2572,74 @@ function rr2(x, y, w, h, r){
   ctx.closePath();
 }
 function hash1(n){ var x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); }
+function drawBGFactory(){ // W2: indoor industrial layers (Bible parallax 0 / 0.15 / 0.35 / 0.6 / 0.85)
+  var g = ctx.createLinearGradient(0, 0, 0, VH);
+  g.addColorStop(0, '#2A1708'); g.addColorStop(0.6, '#4A2C12'); g.addColorStop(1, '#33200D');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
+  // (1) far factory wall, panelled, one lit window band (parallax 0)
+  ctx.fillStyle = 'rgba(255,227,179,0.05)';
+  for (var wp = 0; wp < 8; wp++) ctx.fillRect(wp * 128 + 8, 26, 104, 300);
+  ctx.fillStyle = 'rgba(255,190,90,0.10)'; ctx.fillRect(0, 330, VW, 26);
+  // (2) big gears + machine silhouettes (0.15)
+  for (var gi2 = 0; gi2 < 4; gi2++) {
+    var gx = ((gi2 * 320 + hash1(gi2 + 5) * 120 - camX * 0.15) % (VW + 300) + VW + 300) % (VW + 300) - 150;
+    var gy = 92 + hash1(gi2 + 11) * 90, gr = 44 + hash1(gi2 + 23) * 26;
+    ctx.save(); ctx.translate(gx, gy); ctx.rotate(animT * 0.12 * (gi2 % 2 ? 1 : -1));
+    ctx.fillStyle = 'rgba(20,10,4,0.5)';
+    ctx.beginPath(); ctx.arc(0, 0, gr, 0, 6.29); ctx.fill();
+    for (var gt = 0; gt < 8; gt++) { ctx.save(); ctx.rotate(gt * 0.785); ctx.fillRect(gr - 6, -8, 15, 16); ctx.restore(); }
+    ctx.fillStyle = 'rgba(90,58,30,0.6)'; ctx.beginPath(); ctx.arc(0, 0, gr * 0.34, 0, 6.29); ctx.fill();
+    ctx.restore();
+  }
+  // (3) pipe network + vat outlines (0.35)
+  ctx.strokeStyle = 'rgba(24,13,5,0.65)'; ctx.lineWidth = 15;
+  for (var pp = 0; pp < 3; pp++) {
+    var py2 = 150 + pp * 92;
+    ctx.beginPath(); ctx.moveTo(-10, py2); ctx.lineTo(VW + 10, py2 + ((pp % 2) ? 14 : -8)); ctx.stroke();
+  }
+  ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(245,185,66,0.16)';
+  ctx.beginPath(); ctx.moveTo(-10, 146); ctx.lineTo(VW + 10, 138); ctx.stroke();
+  for (var vt = 0; vt < 3; vt++) {
+    var vx2 = ((vt * 380 + hash1(vt + 31) * 90 - camX * 0.35) % (VW + 340) + VW + 340) % (VW + 340) - 170;
+    ctx.fillStyle = 'rgba(22,12,5,0.55)';
+    ctx.beginPath(); ctx.ellipse(vx2, 478, 86, 20, 0, 0, 6.29); ctx.fill();
+    ctx.fillRect(vx2 - 86, 400, 172, 78);
+    ctx.fillStyle = 'rgba(232,131,58,0.20)'; ctx.beginPath(); ctx.ellipse(vx2, 402, 80, 13, 0, 0, 6.29); ctx.fill();
+  }
+  // (4) chocolate river glow below (0.6)
+  var rg = ctx.createLinearGradient(0, 492, 0, VH);
+  rg.addColorStop(0, 'rgba(232,131,58,0.0)'); rg.addColorStop(1, 'rgba(232,131,58,0.34)');
+  ctx.fillStyle = rg; ctx.fillRect(0, 492, VW, VH - 492);
+  ctx.strokeStyle = 'rgba(255,170,90,0.35)'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (var wx = 0; wx <= VW; wx += 24) { var wy = 516 + Math.sin(wx * 0.03 + animT * 1.4) * 3.5; if (wx === 0) ctx.moveTo(wx, wy); else ctx.lineTo(wx, wy); }
+  ctx.stroke();
+  // (5) hanging lamps + rising steam wisps (0.85)
+  for (var li3 = 0; li3 < 6; li3++) {
+    var lx = ((li3 * 190 + hash1(li3 + 47) * 70 - camX * 0.85) % (VW + 180) + VW + 180) % (VW + 180) - 90;
+    ctx.strokeStyle = 'rgba(15,8,3,0.8)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(lx, 0); ctx.lineTo(lx, 44); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,196,86,0.92)';
+    ctx.beginPath(); ctx.moveTo(lx - 13, 62); ctx.lineTo(lx + 13, 62); ctx.lineTo(lx + 6, 44); ctx.lineTo(lx - 6, 44); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,190,90,0.10)';
+    ctx.beginPath(); ctx.moveTo(lx - 30, 190); ctx.lineTo(lx + 30, 190); ctx.lineTo(lx + 12, 64); ctx.lineTo(lx - 12, 64); ctx.closePath(); ctx.fill();
+  }
+  ctx.fillStyle = 'rgba(255,255,255,0.13)';
+  for (var st2 = 0; st2 < 12; st2++) {
+    var sxp = (hash1(st2 + 71) * VW + Math.sin(animT * 0.7 + st2) * 9 - camX * 0.85 % VW + VW) % VW;
+    var syp = VH - ((animT * (13 + hash1(st2) * 11) + hash1(st2 + 101) * VH) % VH);
+    ctx.beginPath(); ctx.ellipse(sxp, syp, 7 + hash1(st2 + 3) * 8, 4.5, 0, 0, 6.29); ctx.fill();
+  }
+  // airborne sprinkle motes (decoration only — real danger is always rimmed)
+  for (var mo = 0; mo < 10; mo++) {
+    var mxp = (hash1(mo + 131) * VW + animT * (6 + hash1(mo) * 9)) % VW;
+    var myp = (hash1(mo + 151) * VH * 0.7 + animT * 7) % (VH * 0.8);
+    ctx.fillStyle = ['#FF8FB8', '#7ED0FF', '#FFF3B0'][mo % 3]; ctx.globalAlpha = 0.5;
+    ctx.fillRect(mxp, myp, 3.4, 3.4); ctx.globalAlpha = 1;
+  }
+}
 function drawBG(){
+  if (L && L.world === 2) { drawBGFactory(); return; }
   var g = ctx.createLinearGradient(0, 0, 0, VH);
   g.addColorStop(0, '#FFB7D1'); g.addColorStop(0.55, '#FFD3E4'); g.addColorStop(1, '#BDEFFF');
   ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
@@ -1985,7 +2689,17 @@ function drawPlatform(p){
   if (p.bphase && (!bossState || bossState.phase !== p.bphase)) return; // L50 discs exist only in their phase
   ctx.save();
   if ((p.kind === 'sham' || p.kind === 'cube') && p.state === 'crack') ctx.translate(Math.sin(animT * 55) * 1.3, 0);
-  if (p.kind === 'ground') {
+  if (p.kind === 'ground' && L && L.world === 2) {
+    // W2 tileset: riveted choc-steel plate with a wafer-tile top and caramel trim
+    ctx.fillStyle = '#5C3A1E'; rr2(x, y, w, h, 4); ctx.fill();
+    ctx.fillStyle = '#8A5A2B'; rr2(x, y, w, 15, 5); ctx.fill();
+    ctx.fillStyle = '#E8833A'; ctx.fillRect(x, y + 13, w, 2.5);
+    ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.5; rr2(x, y, w, h, 4); ctx.stroke();
+    ctx.fillStyle = '#F5B942';
+    for (var ri = Math.floor(x / 46); ri * 46 < x + w; ri++) { ctx.beginPath(); ctx.arc(ri * 46 + 16, y + 27, 2.6, 0, 6.29); ctx.fill(); }
+    ctx.strokeStyle = 'rgba(51,48,46,.35)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); for (var ti2 = Math.floor(x / 46); ti2 * 46 < x + w; ti2++) { ctx.moveTo(ti2 * 46 + 34, y + 2); ctx.lineTo(ti2 * 46 + 34, y + 13); } ctx.stroke();
+  } else if (p.kind === 'ground') {
     ctx.fillStyle = '#8A5A2B'; rr2(x, y, w, h, 4); ctx.fill();
     ctx.fillStyle = '#A8EAC8'; rr2(x, y, w, 13, 5); ctx.fill();
     ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.5; rr2(x, y, w, h, 4); ctx.stroke();
@@ -2082,6 +2796,67 @@ function drawPlatform(p){
     for (var vi = 0; vi < 4; vi++) { ctx.moveTo(x + 8 + vi * (w - 16) / 3, y + h - 3); ctx.lineTo(x + 16 + vi * (w - 16) / 3, y + 3); }
     ctx.stroke();
     ctx.restore();
+  } else if (p.kind === 'melt') {
+    // W2 T01: wafer tile — edges drip first; sag + cracks grow with the melt (visible stages before it drops)
+    var mpr = p.state === 'crack' ? clamp(p.t / (p.meltT || 1.1), 0, 1) : 0;
+    var sagM = mpr * 3.5;
+    ctx.fillStyle = mpr > 0.55 ? '#F5C98F' : '#FFE3B3'; rr2(x, y + sagM, w, h, 5); ctx.fill();
+    ctx.strokeStyle = '#C98A44'; ctx.lineWidth = 2.6; rr2(x, y + sagM, w, h, 5); ctx.stroke();
+    ctx.fillStyle = '#E8833A';
+    var drL = 3 + mpr * 8;
+    ctx.fillRect(x + 6, y + h - 1 + sagM, 3.4, drL); ctx.fillRect(x + w - 10, y + h - 1 + sagM, 3.4, drL * 0.8);
+    if (mpr > 0.35) {
+      ctx.strokeStyle = 'rgba(51,48,46,.7)'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(x + w * 0.3, y + 2 + sagM); ctx.lineTo(x + w * 0.42, y + h - 3 + sagM); ctx.moveTo(x + w * 0.68, y + 2 + sagM); ctx.lineTo(x + w * 0.6, y + h - 4 + sagM); ctx.stroke();
+    }
+  } else if (p.kind === 'belt') {
+    // W2 T03: conveyor — brass rails + chevrons that scroll WITH the carry; a reversal flashes the chevrons first
+    ctx.fillStyle = '#3A2410'; rr2(x, y, w, h, 4); ctx.fill();
+    ctx.fillStyle = '#F5B942'; ctx.fillRect(x, y, w, 4); ctx.fillRect(x, y + h - 4, w, 4);
+    var flashB = p.beltTell > 0 && Math.sin(animT * 26) > 0;
+    ctx.fillStyle = flashB ? '#6FCE3A' : 'rgba(255,227,179,0.85)';
+    var dirB = p.dirNow || p.dir || 1, offB = ((p.beltOff || 0) % 36 + 36) % 36;
+    for (var cb = -1; cb < w / 36 + 1; cb++) {
+      var cxB = x + cb * 36 + offB;
+      if (cxB < x - 12 || cxB > x + w - 4) continue;
+      ctx.beginPath();
+      if (dirB > 0) { ctx.moveTo(cxB, y + 9); ctx.lineTo(cxB + 9, y + h / 2); ctx.lineTo(cxB, y + h - 9); ctx.lineTo(cxB + 4, y + h / 2); }
+      else { ctx.moveTo(cxB + 9, y + 9); ctx.lineTo(cxB, y + h / 2); ctx.lineTo(cxB + 9, y + h - 9); ctx.lineTo(cxB + 5, y + h / 2); }
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.4; rr2(x, y, w, h, 4); ctx.stroke();
+  } else if (p.kind === 'slide') {
+    // W2 T06: lever platform on its rail — both wired positions visible
+    ctx.strokeStyle = 'rgba(245,185,66,0.55)'; ctx.lineWidth = 3; ctx.setLineDash([6, 5]);
+    ctx.beginPath(); ctx.moveTo(p.x0 + 6, p.y0 + h / 2); ctx.lineTo(p.x0 + (p.dx || 0) + w - 6, p.y0 + (p.dy || 0) + h / 2); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#6B4423'; rr2(x, y, w, h, 5); ctx.fill();
+    ctx.fillStyle = '#FFE3B3'; rr2(x, y, w, 6, 3); ctx.fill();
+    ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.6; rr2(x, y, w, h, 5); ctx.stroke();
+    ctx.fillStyle = '#F5B942'; ctx.beginPath(); ctx.arc(x + 10, y + h / 2 + 2, 2.6, 0, 6.29); ctx.arc(x + w - 10, y + h / 2 + 2, 2.6, 0, 6.29); ctx.fill();
+  } else if (p.kind === 'lift') {
+    // W2 T18: cable lift — in the hold's last 0.45s it SHUDDERS (the drop tell, with the twang)
+    var shud = (p.liftState === 'hold' && p.liftT > (p.holdT || 1.15) - 0.45) ? Math.sin(animT * 47) * 1.6 : 0;
+    ctx.strokeStyle = '#2A2A2A'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x + w / 2, y - 260); ctx.lineTo(x + w / 2 + shud, y); ctx.stroke();
+    ctx.fillStyle = '#F5B942'; ctx.beginPath(); ctx.arc(x + w / 2, y - 258, 7, 0, 6.29); ctx.fill();
+    ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.save(); ctx.translate(shud, 0);
+    ctx.fillStyle = '#8A5A2B'; rr2(x, y, w, h, 4); ctx.fill();
+    ctx.fillStyle = '#FFE3B3'; rr2(x, y, w, 6, 3); ctx.fill();
+    ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.6; rr2(x, y, w, h, 4); ctx.stroke();
+    ctx.restore();
+  } else if (p.kind === 'hslab') {
+    // W2 T16: hollow choc slab — the fine shell-crack line is the baked-in tell; cracks spread in the 0.4s window
+    ctx.fillStyle = '#6B4423'; rr2(x, y, w, h, 4); ctx.fill();
+    ctx.fillStyle = '#8A5A2B'; rr2(x, y, w, 6, 3); ctx.fill();
+    ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.4; rr2(x, y, w, h, 4); ctx.stroke();
+    ctx.strokeStyle = 'rgba(30,20,10,.55)'; ctx.lineWidth = 1.3;
+    ctx.beginPath(); ctx.moveTo(x + w * 0.22, y + 3); ctx.lineTo(x + w * 0.4, y + h - 3); ctx.moveTo(x + w * 0.62, y + 2); ctx.lineTo(x + w * 0.55, y + h - 4); ctx.stroke();
+    if (p.state === 'crack') {
+      ctx.strokeStyle = '#1E140A'; ctx.lineWidth = 1.8;
+      var aH = clamp(p.t / (p.crackT || 0.4), 0, 1);
+      ctx.beginPath(); ctx.moveTo(x + 8, y + 2); ctx.lineTo(x + 8 + w * 0.3 * aH, y + h - 2); ctx.moveTo(x + w - 8, y + 3); ctx.lineTo(x + w - 8 - w * 0.22 * aH, y + h - 3); ctx.stroke();
+    }
   } else if (p.kind === 'fakewall') {
     // L27: a wall that is not — one shade off, with a hairline crack (the tell)
     ctx.fillStyle = '#C99B62'; rr2(x, y, w, h, 3); ctx.fill();
@@ -2309,7 +3084,12 @@ function drawJawbreakerTrap(t){
 }
 function drawSecretZone(t){
   ctx.save();
-  ctx.globalAlpha = 0.55 + Math.sin(animT * 3.4) * 0.25;
+  var dimS = false;
+  if (t.needsLever) { // dormant doorways barely glimmer until their price is paid
+    dimS = true;
+    for (var dsi = 0; dsi < L.traps.length; dsi++) { var dlt = L.traps[dsi]; if (dlt.type === 'lever' && dlt.id === t.needsLever.id && (dlt.pulls || 0) >= (t.needsLever.count || 3)) dimS = false; }
+  }
+  ctx.globalAlpha = dimS ? 0.14 : 0.55 + Math.sin(animT * 3.4) * 0.25;
   ctx.fillStyle = '#B388FF';
   var pts = [[t.x + 8, t.y + 12], [t.x + t.w - 10, t.y + 30], [t.x + t.w / 2, t.y + t.h - 14]];
   for (var i = 0; i < 3; i++) {
@@ -2318,11 +3098,383 @@ function drawSecretZone(t){
   }
   ctx.restore();
 }
+/* -------- Step 6B trap art (World 2): every danger carries the Rot-green rim -------- */
+function rotRim(x, y, w, h){ ctx.strokeStyle = '#6FCE3A'; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h); }
+function drawAmbush(t){ // T02: wafer tile whose sprinkle pattern wiggles — ONE sprinkle is Rot-green
+  var x = t.x, top = t.top, w = t.w;
+  ctx.save();
+  if (t.state === 'tell') ctx.translate(Math.sin(animT * 46) * 1.6, 0);
+  ctx.fillStyle = '#FFE3B3'; rr2(x, top - 10, w, 12, 3); ctx.fill();
+  ctx.strokeStyle = '#C98A44'; ctx.lineWidth = 2.2; rr2(x, top - 10, w, 12, 3); ctx.stroke();
+  var cols = ['#FF8FB8', '#7ED0FF', '#FFF3B0', '#FF8FB8'];
+  for (var i = 0; i < 6; i++) {
+    var sxA = x + 7 + (i * 37 + t.x * 3) % (w - 12), syA = top - 7 + (i * 13) % 6;
+    if (i === 2) { // the lying sprinkle
+      ctx.fillStyle = '#6FCE3A';
+      ctx.save(); if (t.state === 'tell') { ctx.shadowColor = '#6FCE3A'; ctx.shadowBlur = 8; }
+      ctx.fillRect(sxA, syA, 5, 2.6); ctx.restore();
+    } else { ctx.fillStyle = cols[i % 4]; ctx.fillRect(sxA, syA, 5, 2.6); }
+  }
+  var rise = t.rise || 0;
+  if (rise > 0.02) {
+    var nA = Math.max(3, Math.floor(w / 14));
+    for (var s2 = 0; s2 < nA; s2++) {
+      var bxA = x + 5 + s2 * (w - 10) / (nA - 1) - 4, hhA = 15 * rise;
+      ctx.fillStyle = '#4A2C12';
+      ctx.beginPath(); ctx.moveTo(bxA, top); ctx.lineTo(bxA + 4, top - hhA); ctx.lineTo(bxA + 8, top); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#6FCE3A'; ctx.fillRect(bxA + 3, top - hhA, 2, 3);
+    }
+  }
+  ctx.restore();
+}
+function drawPress(t){ // T04/T21: overhead beam, hanger rods, the great choc-steel head; shadow grows in the tell; twin lamp counts in
+  var top = t.top, drop = t.drop || 150, hw = t.hw || 38;
+  var headBot = (t.headBot !== undefined && t.headBot !== null) ? t.headBot : top - drop;
+  var beamY = top - drop - 64;
+  ctx.save();
+  ctx.fillStyle = '#2A2A2A'; ctx.fillRect(t.x - hw - 16, beamY - 10, hw * 2 + 32, 12);
+  ctx.fillStyle = '#F5B942'; ctx.beginPath(); ctx.arc(t.x - hw - 8, beamY - 4, 3, 0, 6.29); ctx.arc(t.x + hw + 8, beamY - 4, 3, 0, 6.29); ctx.fill();
+  ctx.strokeStyle = '#2A2A2A'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(t.x - hw + 8, beamY + 2); ctx.lineTo(t.x - hw + 8, headBot - 54); ctx.moveTo(t.x + hw - 8, beamY + 2); ctx.lineTo(t.x + hw - 8, headBot - 54); ctx.stroke();
+  // the shadow on the floor — it GROWS through the tell
+  var shA = t.state === 'tell' ? 0.16 + 0.3 * (t.t / 0.45) : (t.state === 'slam' || t.state === 'down' ? 0.42 : 0.13);
+  ctx.fillStyle = 'rgba(20,10,4,' + shA + ')';
+  ctx.beginPath(); ctx.ellipse(t.x, top + 3, hw + 4, 6, 0, 0, 6.29); ctx.fill();
+  if (t.state === 'tell') ctx.translate(Math.sin(animT * 52) * 1.5, 0); // the tremble
+  ctx.fillStyle = '#5C3A1E'; rr2(t.x - hw, headBot - 54, hw * 2, 54, 5); ctx.fill();
+  ctx.fillStyle = '#8A5A2B'; rr2(t.x - hw, headBot - 54, hw * 2, 12, 5); ctx.fill();
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 3; rr2(t.x - hw, headBot - 54, hw * 2, 54, 5); ctx.stroke();
+  ctx.fillStyle = '#F5B942';
+  ctx.beginPath(); ctx.arc(t.x - hw + 10, headBot - 16, 3, 0, 6.29); ctx.arc(t.x + hw - 10, headBot - 16, 3, 0, 6.29); ctx.fill();
+  if (t.twin) { // the rhythm lamp: lit through tell+slam — it never lies
+    var lampOn = t.state === 'tell' || t.state === 'slam' || t.state === 'down';
+    ctx.fillStyle = lampOn ? '#6FCE3A' : 'rgba(255,227,179,0.35)';
+    if (lampOn) { ctx.save(); ctx.shadowColor = '#6FCE3A'; ctx.shadowBlur = 10; }
+    ctx.beginPath(); ctx.arc(t.x, beamY - 22, 7, 0, 6.29); ctx.fill();
+    if (lampOn) ctx.restore();
+    ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(t.x, beamY - 22, 7, 0, 6.29); ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawJar(t){ // T05: the jar on its shelf — wobble is the tell; shards stay drawn briefly
+  ctx.save();
+  ctx.fillStyle = '#8A5A2B'; ctx.fillRect(t.x - 30, t.y + 30, 60, 7);
+  ctx.fillStyle = '#5C3A1E'; ctx.fillRect(t.x - 24, t.y + 37, 6, 12); ctx.fillRect(t.x + 18, t.y + 37, 6, 12);
+  if (t.state === 'idle' || t.state === 'tell') {
+    ctx.save();
+    if (t.state === 'tell') { ctx.translate(t.x, t.y + 30); ctx.rotate(Math.sin(animT * 34) * 0.09); ctx.translate(-t.x, -(t.y + 30)); }
+    ctx.fillStyle = 'rgba(200,235,255,0.5)'; rr2(t.x - 14, t.y, 28, 30, 6); ctx.fill();
+    ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.2; rr2(t.x - 14, t.y, 28, 30, 6); ctx.stroke();
+    ctx.fillStyle = '#F5B942'; ctx.fillRect(t.x - 15, t.y - 4, 30, 6);
+    var spc = ['#FF8FB8', '#7ED0FF', '#6FCE3A', '#FFF3B0'];
+    for (var i = 0; i < 5; i++) { ctx.fillStyle = spc[i % 4]; ctx.fillRect(t.x - 9 + (i * 11) % 18, t.y + 8 + (i * 7) % 15, 4.6, 2.4); }
+    ctx.restore();
+    // its shadow lands first — drawn on the floor in every ready state
+    ctx.fillStyle = 'rgba(20,10,4,0.28)';
+    ctx.beginPath(); ctx.ellipse(t.x, t.top + 3, 17, 4.5, 0, 0, 6.29); ctx.fill();
+  } else if (t.state === 'fall') {
+    ctx.fillStyle = 'rgba(200,235,255,0.55)'; rr2(t.x - 14, t.dropY, 28, 30, 6); ctx.fill();
+    ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.2; rr2(t.x - 14, t.dropY, 28, 30, 6); ctx.stroke();
+    ctx.fillStyle = '#F5B942'; ctx.fillRect(t.x - 15, t.dropY - 4, 30, 6);
+  } else if (t.state === 'shards') {
+    ctx.fillStyle = '#BFE8FF';
+    ctx.beginPath(); ctx.moveTo(t.x - 24, t.top); ctx.lineTo(t.x - 12, t.top - 9); ctx.lineTo(t.x - 4, t.top); ctx.moveTo(t.x + 2, t.top); ctx.lineTo(t.x + 13, t.top - 10); ctx.lineTo(t.x + 24, t.top); ctx.fill();
+    rotRim(t.x - 26, t.top - 11, 52, 11);
+  }
+  ctx.restore();
+}
+function drawLever(t){ // T06: the lever + its HONEST sign — the arrow is the computed next-pull direction, rimmed faintly in Rot green
+  var top = t.top;
+  ctx.save();
+  ctx.fillStyle = '#2A2A2A'; rr2(t.x - 4, top - 16, 36, 16, 3); ctx.fill();
+  ctx.fillStyle = '#F5B942'; ctx.beginPath(); ctx.arc(t.x + 14, top - 16, 6, 0, 6.29); ctx.fill();
+  var ang = (t.pulls % 2 === 0) ? -0.55 : 0.55;
+  ctx.strokeStyle = '#C03A2B'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(t.x + 14, top - 16); ctx.lineTo(t.x + 14 + Math.sin(ang) * 26, top - 16 - Math.cos(ang) * 26); ctx.stroke();
+  ctx.fillStyle = '#C03A2B'; ctx.beginPath(); ctx.arc(t.x + 14 + Math.sin(ang) * 27, top - 16 - Math.cos(ang) * 27, 6.5, 0, 6.29); ctx.fill();
+  // the sign board
+  var bxL = t.x - 16, byL = top - 96;
+  ctx.fillStyle = '#5C3A1E'; ctx.fillRect(t.x + 12, top - 62, 4, 28);
+  ctx.fillStyle = '#FFE3B3'; rr2(bxL, byL, 64, 34, 5); ctx.fill();
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.2; rr2(bxL, byL, 64, 34, 5); ctx.stroke();
+  rotRim(bxL + 1.5, byL + 1.5, 61, 31);
+  var dxS = t.signDx || 0, dyS = t.signDy || 0;
+  ctx.fillStyle = '#C03A2B';
+  ctx.save(); ctx.translate(bxL + 32, byL + 17);
+  if (dxS !== 0 || dyS !== 0) {
+    ctx.rotate(Math.atan2(dyS, dxS));
+    ctx.beginPath(); ctx.moveTo(-11, -3.4); ctx.lineTo(4, -3.4); ctx.lineTo(4, -8); ctx.lineTo(14, 0); ctx.lineTo(4, 8); ctx.lineTo(4, 3.4); ctx.lineTo(-11, 3.4); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  ctx.fillStyle = '#5B3A14'; ctx.font = '900 8.5px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('REVERSED', bxL + 32, byL + 45);
+  ctx.restore();
+}
+function drawVent(t){ // T07: floor grate; wisps first, then the jet
+  var top = t.top, h = t.h || 132;
+  ctx.save();
+  ctx.fillStyle = '#2A2A2A'; rr2(t.x - 17, top - 6, 34, 8, 3); ctx.fill();
+  ctx.fillStyle = '#F5B942';
+  for (var i = 0; i < 4; i++) ctx.fillRect(t.x - 13 + i * 8, top - 4.6, 4, 5);
+  if (t.state === 'tell') {
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    for (var wI = 0; wI < 3; wI++) {
+      var wy2 = top - 14 - ((animT * 34 + wI * 15) % 34);
+      ctx.beginPath(); ctx.ellipse(t.x - 8 + wI * 8 + Math.sin(animT * 6 + wI) * 2, wy2, 4.6, 3, 0, 0, 6.29); ctx.fill();
+    }
+  } else if (t.state === 'blast') {
+    var grd = ctx.createLinearGradient(0, top - h, 0, top);
+    grd.addColorStop(0, 'rgba(255,255,255,0.06)'); grd.addColorStop(1, 'rgba(255,255,255,0.75)');
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.moveTo(t.x - 11, top);
+    ctx.quadraticCurveTo(t.x - 13 + Math.sin(animT * 31) * 2, top - h / 2, t.x - 7, top - h);
+    ctx.lineTo(t.x + 7, top - h);
+    ctx.quadraticCurveTo(t.x + 13 + Math.cos(animT * 29) * 2, top - h / 2, t.x + 11, top);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.beginPath(); ctx.ellipse(t.x, top - h - 4, 11 + Math.sin(animT * 17) * 2, 5.5, 0, 0, 6.29); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawCdrip(t){ // T08: brass pipe mouth; the drop forms, lengthens, falls; caramel puddle
+  ctx.save();
+  ctx.fillStyle = '#8A5A2B'; ctx.fillRect(t.x - 24, t.y - 12, 48, 12);
+  ctx.fillStyle = '#F5B942'; ctx.fillRect(t.x - 7, t.y, 14, 15);
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2; ctx.strokeRect(t.x - 7, t.y, 14, 15);
+  if (t.state === 'tell' || t.state === 'fall') {
+    ctx.fillStyle = '#E8833A';
+    ctx.beginPath(); ctx.ellipse(t.x, t.dropY + 6, 7.5, 10, 0, 0, 6.29); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fillRect(t.x - 3, t.dropY + 1, 2.6, 6);
+  } else if (t.state === 'splat') {
+    ctx.fillStyle = '#E8833A';
+    ctx.beginPath(); ctx.ellipse(t.x, t.top - 2, 21, 5.5, 0, 0, 6.29); ctx.fill();
+  }
+  ctx.fillStyle = 'rgba(20,10,4,0.25)';
+  ctx.beginPath(); ctx.ellipse(t.x, t.top + 3, 15, 4, 0, 0, 6.29); ctx.fill();
+  ctx.restore();
+}
+function drawDomino(t){ // T10: wafer scaffold slabs on bottom hinges; the first tilts in the tell
+  var n = t.n || 4, gap = t.gap || 56, dir = t.dir || 1, h = t.h || 118;
+  ctx.save();
+  for (var i = 0; i < n; i++) {
+    var sx = t.x + dir * i * gap, th = 0;
+    if (t.state === 'tell' && i === 0) th = Math.sin(animT * 30) * 0.045;
+    if (t.state === 'run' || t.state === 'done') {
+      var st = t.slabT ? t.slabT[i] : -1;
+      th = st < 0 ? 0 : Math.min(1, st / 0.5) * 1.45;
+    }
+    ctx.save();
+    ctx.translate(sx + 17, t.top); ctx.rotate(dir * th);
+    ctx.fillStyle = '#FFE3B3'; rr2(-17, -h, 34, h, 4); ctx.fill();
+    ctx.strokeStyle = '#C98A44'; ctx.lineWidth = 2.6; rr2(-17, -h, 34, h, 4); ctx.stroke();
+    ctx.strokeStyle = 'rgba(201,138,68,.55)'; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(-17, -h / 2); ctx.lineTo(17, -h / 2); ctx.stroke();
+    ctx.fillStyle = '#8A5A2B';
+    ctx.beginPath(); ctx.arc(-8, -h + 10, 2.6, 0, 6.29); ctx.arc(8, -12, 2.6, 0, 6.29); ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+function drawMixer(t){ // T11: vat rim, gear hub, the great arm — parked UP when its watch is off
+  ctx.save();
+  ctx.strokeStyle = 'rgba(245,185,66,0.5)'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.ellipse(t.x, t.top + 4, (t.len || 180) + 26, 10, 0, 0.15, 3.0); ctx.stroke();
+  var a = t.armA || 0, len = t.len || 180;
+  var hx = t.x + Math.sin(a) * len, hy = t.y + Math.cos(a) * len;
+  ctx.strokeStyle = '#2A2A2A'; ctx.lineWidth = 13;
+  ctx.beginPath(); ctx.moveTo(t.x, t.y); ctx.lineTo(hx, hy); ctx.stroke();
+  ctx.strokeStyle = '#F5B942'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(t.x, t.y); ctx.lineTo(hx, hy); ctx.stroke();
+  ctx.fillStyle = '#5C3A1E';
+  ctx.save(); ctx.translate(hx, hy); ctx.rotate(a);
+  rr2(-9, -22, 18, 44, 6); ctx.fill();
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.4; rr2(-9, -22, 18, 44, 6); ctx.stroke();
+  ctx.restore();
+  ctx.save();
+  if (t.state === 'tell') ctx.translate(Math.sin(animT * 42) * 1.6, 0);
+  ctx.fillStyle = '#8A5A2B'; ctx.beginPath(); ctx.arc(t.x, t.y, 17, 0, 6.29); ctx.fill();
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.fillStyle = '#F5B942'; ctx.beginPath(); ctx.arc(t.x, t.y, 6, 0, 6.29); ctx.fill();
+  ctx.restore();
+  ctx.restore();
+}
+function drawGusher(t){ // T12: brass pipe; swells + leaks steam in the tell; the jet is rimmed chocolate
+  var top = t.top, my = top - (t.jetY || 56), dir = t.dir || -1, len = t.len || 190;
+  ctx.save();
+  ctx.fillStyle = '#8A5A2B'; ctx.fillRect(t.x - 9, my - 4, 18, top - my + 4);
+  ctx.fillStyle = '#F5B942'; ctx.fillRect(t.x - 11, my - 10, 22, 12);
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.2; ctx.strokeRect(t.x - 11, my - 10, 22, 12);
+  if (t.state === 'tell') {
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.beginPath(); ctx.ellipse(t.x + dir * 14, my - 12, 5 + Math.sin(animT * 22) * 1.4, 3.4, 0, 0, 6.29); ctx.fill();
+    ctx.fillStyle = '#A06A34'; ctx.beginPath(); ctx.arc(t.x, my - 4, 13 + Math.sin(animT * 18) * 1.6, 0, 6.29); ctx.fill();
+  }
+  if (t.state === 'jet') {
+    var jx = dir > 0 ? t.x + 8 : t.x - len;
+    var grd2 = ctx.createLinearGradient(jx, 0, jx + (dir > 0 ? len : -len), 0);
+    grd2.addColorStop(0, 'rgba(146,84,32,0.95)'); grd2.addColorStop(1, 'rgba(146,84,32,0.55)');
+    ctx.fillStyle = grd2;
+    ctx.beginPath();
+    ctx.moveTo(jx, my - 10);
+    ctx.quadraticCurveTo(jx + dir * len * 0.5, my - 13 + Math.sin(animT * 35) * 2, jx + dir * len, my - 6);
+    ctx.lineTo(jx + dir * len, my + 7);
+    ctx.quadraticCurveTo(jx + dir * len * 0.5, my + 12, jx, my + 10);
+    ctx.closePath(); ctx.fill();
+    rotRim(dir > 0 ? jx : jx - 2, my - 12, len, 24);
+  }
+  ctx.restore();
+}
+function drawSnare(t){ // T13: shiny caramel strands waving over the path — sticky, never deadly
+  ctx.save();
+  ctx.strokeStyle = 'rgba(232,131,58,0.85)'; ctx.lineWidth = 3;
+  for (var i = 0; i < 5; i++) {
+    var sxN = t.x + 12 + i * (t.w - 24) / 4;
+    ctx.beginPath();
+    ctx.moveTo(sxN, t.top);
+    ctx.quadraticCurveTo(sxN + Math.sin(animT * 2.6 + i * 1.7) * 7, t.top - 26, sxN + Math.sin(animT * 2.1 + i) * 4, t.top - 44 - (i % 2) * 8);
+    ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(255,227,179,0.5)';
+  ctx.beginPath(); ctx.ellipse(t.x + t.w / 2, t.top - 3, t.w / 2, 4, 0, 0, 6.29); ctx.fill();
+  ctx.restore();
+}
+function drawTeeth(t){ // T15: grinder strip — nubs, chattering peek (tell), full snap
+  var top = t.top;
+  ctx.save();
+  ctx.fillStyle = '#3A3A3A'; rr2(t.x, top - 6, t.w, 8, 3); ctx.fill();
+  rotRim(t.x, top - 7, t.w, 9);
+  var th2 = t.state === 'snap' ? 16 : (t.state === 'tell' ? 6.5 : 3);
+  var jit = t.state === 'tell' ? Math.sin(animT * 40) * 1.2 : 0;
+  ctx.fillStyle = '#D8D8D8';
+  var nT = Math.max(3, Math.floor(t.w / 16));
+  for (var i = 0; i < nT; i++) {
+    var bxT = t.x + 4 + i * (t.w - 8) / (nT - 1) - 5 + jit;
+    ctx.beginPath(); ctx.moveTo(bxT, top - 5); ctx.lineTo(bxT + 5, top - 5 - th2); ctx.lineTo(bxT + 10, top - 5); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawRain(t){ // T17: hopper above a Rot-rim strip; lid rattles in the tell, then sprinkle rain
+  var cxR = t.x + t.w / 2, hyR = t.top - 196;
+  ctx.save();
+  rotRim(t.x, t.top - 5, t.w, 6);
+  ctx.strokeStyle = '#2A2A2A'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(cxR - 20, hyR + 22); ctx.lineTo(cxR - 30, hyR - 26); ctx.moveTo(cxR + 20, hyR + 22); ctx.lineTo(cxR + 30, hyR - 26); ctx.stroke();
+  var lidOff = t.state === 'tell' ? Math.sin(animT * 38) * 1.8 : 0;
+  ctx.fillStyle = '#8A5A2B'; rr2(cxR - 30, hyR, 60, 22, 4); ctx.fill();
+  ctx.fillStyle = '#F5B942'; rr2(cxR - 33 + lidOff, hyR - 7, 66, 8, 4); ctx.fill();
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.2; rr2(cxR - 30, hyR, 60, 22, 4); ctx.stroke();
+  if (t.state === 'tell' || t.state === 'rain') {
+    var nSp = t.state === 'rain' ? 26 : 6;
+    for (var i = 0; i < nSp; i++) {
+      var pxR = t.x + 6 + hash1(i * 7 + t.x) * (t.w - 12);
+      var pyR = hyR + 24 + ((animT * (t.state === 'rain' ? 330 : 120) + hash1(i * 13) * 190) % (t.top - hyR - 26));
+      ctx.fillStyle = ['#FF8FB8', '#7ED0FF', '#FFF3B0', '#6FCE3A'][i % 4];
+      ctx.fillRect(pxR, pyR, 4.6, 2.6);
+    }
+  }
+  ctx.restore();
+}
+function drawKernel(t){ // T20: kernel on its marked hot patch; swells + shakes in the tell; the silence reads as a held breath
+  ctx.save();
+  ctx.fillStyle = 'rgba(40,16,4,0.55)';
+  ctx.beginPath(); ctx.ellipse(t.x, t.top + 2, 34, 6, 0, 0, 6.29); ctx.fill();
+  rotRim(t.x - 34, t.top - 3, 68, 7);
+  var scK = t.state === 'tell' ? 1 + Math.sin(animT * 20) * 0.05 + 0.1 : 1;
+  ctx.save(); ctx.translate(t.x, t.top - 9); ctx.scale(scK, scK);
+  if (t.state === 'tell') ctx.translate(Math.sin(animT * 33) * 1.1, 0);
+  ctx.fillStyle = t.state === 'prime' ? '#FFF3B0' : '#F7D774';
+  ctx.beginPath(); ctx.ellipse(0, 0, 11, 9, 0, 0, 6.29); ctx.fill();
+  ctx.strokeStyle = '#C98A44'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.strokeStyle = 'rgba(120,70,20,.7)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(-5, -6); ctx.lineTo(-1, 0); ctx.lineTo(-4, 6); ctx.stroke();
+  ctx.restore();
+  ctx.restore();
+}
+function drawCrane(t){ // T19: rail, trolley, chain, the fudge block; its shadow grows through the tell
+  var hangY = t.top - (t.hang || 185);
+  var by = (t.blockY !== undefined && t.blockY !== null && t.state !== 'idle') ? t.blockY : hangY;
+  if (t.state === 'idle') by = hangY;
+  ctx.save();
+  ctx.fillStyle = '#2A2A2A'; ctx.fillRect(t.x - 90, hangY - 34, 180, 8);
+  ctx.fillStyle = '#F5B942'; ctx.fillRect(t.x - 12, hangY - 30, 24, 12);
+  var shSc = t.state === 'tell' ? 0.5 + 0.5 * (t.t / 0.5) : (t.state === 'drop' ? 1 : 0.45);
+  ctx.fillStyle = 'rgba(20,10,4,' + (0.14 + 0.26 * shSc) + ')';
+  ctx.beginPath(); ctx.ellipse(t.x, t.top + 3, 30 * shSc + 8, 5.5, 0, 0, 6.29); ctx.fill();
+  ctx.strokeStyle = '#2A2A2A'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(t.x, hangY - 20); ctx.lineTo(t.x, by); ctx.stroke();
+  var swayC = t.state === 'idle' || t.state === 'tell' ? Math.sin(animT * 2.2) * 2.4 : 0;
+  ctx.save(); ctx.translate(swayC, 0);
+  ctx.fillStyle = '#6B4423'; rr2(t.x - 28, by, 56, 40, 5); ctx.fill();
+  ctx.fillStyle = '#8A5A2B'; rr2(t.x - 28, by, 56, 10, 4); ctx.fill();
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.6; rr2(t.x - 28, by, 56, 40, 5); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,227,179,.5)'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(t.x - 28, by + 20); ctx.lineTo(t.x + 28, by + 20); ctx.stroke();
+  ctx.restore();
+  ctx.restore();
+}
+function drawFlood(t){ // T22: the doorstep pool — bulge in the tell, then the wave; edges rimmed
+  ctx.save();
+  ctx.fillStyle = 'rgba(146,84,32,0.5)'; ctx.fillRect(t.x, t.top - 3, t.w, 5);
+  rotRim(t.x, t.top - 4, t.w, 6);
+  if (t.state === 'tell') {
+    ctx.fillStyle = 'rgba(146,84,32,0.85)';
+    ctx.beginPath(); ctx.ellipse(t.x + t.w / 2, t.top - 2, t.w * 0.3 * (0.7 + 0.3 * Math.sin(animT * 9)), 7 + Math.sin(animT * 9) * 2, 0, 3.14, 6.29); ctx.fill();
+  } else if (t.state === 'flood') {
+    ctx.fillStyle = 'rgba(146,84,32,0.92)';
+    ctx.beginPath();
+    ctx.moveTo(t.x, t.top + 2);
+    for (var fx2 = 0; fx2 <= t.w; fx2 += 18) ctx.lineTo(t.x + fx2, t.top - 44 + Math.sin(animT * 7 + fx2 * 0.22) * 3.4);
+    ctx.lineTo(t.x + t.w, t.top + 2); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(255,227,179,0.65)';
+    ctx.beginPath(); ctx.ellipse(t.x + t.w * 0.3, t.top - 42, 9, 3, 0, 0, 6.29); ctx.ellipse(t.x + t.w * 0.72, t.top - 40, 7, 2.6, 0, 0, 6.29); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawCartSpawner(t){ // T14: rail + the lamp at the spawn end — the lamp glows in the tell
+  ctx.save();
+  ctx.strokeStyle = 'rgba(42,42,42,0.85)'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(t.x - 30, t.top + 6); ctx.lineTo(t.x + (t.dir || 1) * 190, t.top + 6); ctx.stroke();
+  ctx.fillStyle = '#2A2A2A'; ctx.fillRect(t.x - 3, t.top - 34, 6, 34);
+  var glowC = t.state === 'tell';
+  ctx.fillStyle = glowC ? '#FFE9A0' : 'rgba(255,227,179,0.4)';
+  if (glowC) { ctx.save(); ctx.shadowColor = '#F5B942'; ctx.shadowBlur = 13; }
+  ctx.beginPath(); ctx.arc(t.x, t.top - 40, 6, 0, 6.29); ctx.fill();
+  if (glowC) ctx.restore();
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 1.8; ctx.beginPath(); ctx.arc(t.x, t.top - 40, 6, 0, 6.29); ctx.stroke();
+  ctx.restore();
+}
+function drawTruffleRack(t){ // T09: the rack the truffle rolls off — it shakes in the tell
+  ctx.save();
+  if (t.state === 'tell') ctx.translate(Math.sin(animT * 40) * 1.3, 0);
+  ctx.fillStyle = '#5C3A1E';
+  ctx.fillRect(t.x - 34, t.top - 64, 7, 64); ctx.fillRect(t.x + 27, t.top - 64, 7, 64);
+  ctx.fillRect(t.x - 38, t.top - 70, 76, 8);
+  ctx.fillStyle = 'rgba(107,68,35,0.9)';
+  ctx.beginPath(); ctx.arc(t.x, t.top - 78, 15, 3.14, 6.29); ctx.fill();
+  ctx.restore();
+}
 function drawTrap(t){
   if (t.bphase && (!bossState || bossState.phase !== t.bphase)) return; // phase traps exist only in their phase
   switch (t.type) {
     case 'spikes': drawSpikePatch(t); break;
     case 'rotbloom': drawRotbloom(t); break;
+    case 'ambush': drawAmbush(t); break;
+    case 'press': drawPress(t); break;
+    case 'jar': drawJar(t); break;
+    case 'lever': drawLever(t); break;
+    case 'vent': drawVent(t); break;
+    case 'cdrip': drawCdrip(t); break;
+    case 'domino': drawDomino(t); break;
+    case 'mixer': drawMixer(t); break;
+    case 'gusher': drawGusher(t); break;
+    case 'teeth': drawTeeth(t); break;
+    case 'rain': drawRain(t); break;
+    case 'kernel': drawKernel(t); break;
+    case 'crane': drawCrane(t); break;
+    case 'flood': drawFlood(t); break;
+    case 'cart': drawCartSpawner(t); break;
+    case 'truffle': drawTruffleRack(t); break;
     case 'fakeDoor': drawDoorShape(t.x, t.y, { fake: true }); break;
     case 'sweeper': drawSweeper(t); break;
     case 'dripper': drawDripper(t); break;
@@ -2360,7 +3512,29 @@ function drawSign(){
   ctx.fillText(sg.text, sg.x, 445);
   ctx.restore();
 }
+function drawChocGate(x, y, opts){ // W2 door: the Chocolate-Bar Gate — bar segments are the panels, Brass Gold knob
+  var locked = opts && opts.locked, openGlow = opts && opts.open;
+  ctx.save();
+  if (openGlow) { ctx.shadowColor = '#F5B942'; ctx.shadowBlur = 22; }
+  ctx.fillStyle = '#3A2410'; rr2(x - 8, y - 100, 60, 100, 7); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = locked ? '#6E5136' : '#7A4A22'; rr2(x - 3, y - 95, 50, 95, 6); ctx.fill();
+  // bar segments (3 x 4) with bevelled tops
+  for (var rG = 0; rG < 4; rG++) for (var cG = 0; cG < 3; cG++) {
+    var sxG = x + 1 + cG * 15.4, syG = y - 91 + rG * 22.4;
+    ctx.fillStyle = locked ? '#7d5c3a' : '#8A5A2B'; rr2(sxG, syG, 13.6, 20.4, 3); ctx.fill();
+    ctx.fillStyle = 'rgba(255,227,179,0.30)'; ctx.fillRect(sxG + 1.6, syG + 1.6, 10.4, 3.4);
+  }
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 3; rr2(x - 3, y - 95, 50, 95, 6); ctx.stroke();
+  // brass frame + knob
+  ctx.strokeStyle = '#F5B942'; ctx.lineWidth = 2.4; rr2(x - 6, y - 98, 56, 98, 7); ctx.stroke();
+  ctx.fillStyle = '#F5B942'; ctx.beginPath(); ctx.arc(x + 38, y - 46, 6.4, 0, 6.29); ctx.fill();
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2; ctx.stroke();
+  if (locked) { ctx.font = '900 21px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('🔒', x + 22, y - 56); }
+  ctx.restore();
+}
 function drawDoorShape(x, y, opts){
+  if (L && L.world === 2 && !(opts && opts.fake)) { drawChocGate(x, y, opts); return; }
   // candy-cane arch: base at (x, y) ground level; door leaf ~44 wide, 84 tall
   var locked = opts && opts.locked, fake = opts && opts.fake, openGlow = opts && opts.open;
   ctx.save();
@@ -2474,7 +3648,7 @@ function drawWorld(){
   ctx.translate(-Math.round(camX), 0);
   var i, p, c;
   for (i = 0; i < L.platforms.length; i++) drawPlatform(L.platforms[i]);
-  for (i = 0; i < L.traps.length; i++) { var mt = L.traps[i]; if (mt.type === 'mire') drawMire(mt); }
+  for (i = 0; i < L.traps.length; i++) { var mt = L.traps[i]; if (mt.type === 'mire') drawMire(mt); if (mt.type === 'snare') drawSnare(mt); }
   for (i = 0; i < L.traps.length; i++) drawTrap(L.traps[i]);
   drawCheckpointFlag();
   drawSign();
@@ -2509,6 +3683,29 @@ function drawWorld(){
       ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.2; ctx.stroke();
       ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 2.4;
       ctx.beginPath(); ctx.arc(0, 0, R * 0.6, 0.4, 2.6); ctx.stroke();
+    } else if (b.cart) {
+      // W2 T14 cocoa trolley: choc crate body, brass lamp, iron wheels (un-rotated frame)
+      ctx.restore(); ctx.save(); ctx.translate(b.x + b.w / 2, b.y + b.h / 2);
+      ctx.fillStyle = '#6B4423'; rr2(-b.w / 2, -b.h / 2, b.w, b.h - 8, 5); ctx.fill();
+      ctx.fillStyle = '#8A5A2B'; rr2(-b.w / 2, -b.h / 2, b.w, 10, 4); ctx.fill();
+      ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.6; rr2(-b.w / 2, -b.h / 2, b.w, b.h - 8, 5); ctx.stroke();
+      ctx.fillStyle = '#F5B942'; ctx.beginPath(); ctx.arc((b.vx > 0 ? 1 : -1) * (b.w / 2 - 7), -b.h / 2 + 8, 4.6, 0, 6.29); ctx.fill();
+      ctx.fillStyle = '#2A2A2A';
+      ctx.beginPath(); ctx.arc(-b.w / 2 + 11 + (b.rot * 6 % 4), b.h / 2 - 5, 6.4, 0, 6.29); ctx.arc(b.w / 2 - 11 - (b.rot * 6 % 4), b.h / 2 - 5, 6.4, 0, 6.29); ctx.fill();
+    } else if (b.truffle) {
+      // W2 T09 rolling truffle: dark choc sphere, cocoa dust, cream drizzle
+      ctx.fillStyle = '#4F3219'; ctx.beginPath(); ctx.arc(0, 0, R, 0, 6.29); ctx.fill();
+      ctx.strokeStyle = '#33302E'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.strokeStyle = '#F3DCC0'; ctx.lineWidth = 3.4;
+      ctx.beginPath(); ctx.arc(0, 0, R * 0.62, 0.4, 2.4); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, R * 0.3, 2.8, 5.2); ctx.stroke();
+      ctx.fillStyle = 'rgba(201,168,106,.8)';
+      ctx.beginPath(); ctx.arc(-R * 0.4, R * 0.45, 2.4, 0, 6.29); ctx.arc(R * 0.3, R * 0.55, 2, 0, 6.29); ctx.fill();
+    } else if (b.pop) {
+      // W2 T20 popped kernel: pale puff; settled ones sit harmless and pale
+      ctx.fillStyle = b.settled ? 'rgba(255,243,176,.55)' : '#FFF3B0'; ctx.beginPath(); ctx.arc(0, 0, R, 0, 6.29); ctx.fill();
+      ctx.strokeStyle = '#C98A44'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#F7D774'; ctx.beginPath(); ctx.arc(0, R * 0.3, R * 0.5, 0, 6.29); ctx.fill();
     } else {
       ctx.fillStyle = '#FF5F7A'; ctx.beginPath(); ctx.arc(0, 0, R, 0, 6.29); ctx.fill();
       ctx.strokeStyle = '#33302E'; ctx.lineWidth = 3; ctx.stroke();
@@ -2601,6 +3798,59 @@ var HINTS = [
   'Final rehearsal: sweeper, hook, vine, gatling — all at their true speeds.',
   'THE SWEETEST LIE: three phases. Picnic, cake, and a door that lies. Survive!'
 ];
+var HINTS_W2 = [
+  'Melting tiles drip at the edges first. First tile is a lesson — the others are not.',
+  'One sprinkle in the pattern is green and WRONG. Wait beside the tile, not on it.',
+  'The belt carries you — with it, small gaps fly. Against it, jumps shrink. Watch the arrows.',
+  'The press trembles and its shadow grows before it slams. The wafer step is clear of it.',
+  'One breath per tile. And the last tile? Its sprinkles wiggle BEFORE it would melt.',
+  'A jar wobbles and rattles (tink-tink) before it falls. Its shadow lands first.',
+  'Two presses, half a cycle apart. The middle is safe only after the ambush has fired.',
+  'The sign shows a REVERSED arrow — and the sign never lies. The wrong pull is the right one.',
+  'Every machine gets its own spot. Breathing room lives only at the belt\u2019s edge.',
+  'MINI-BOSS: the floor melts in sections and tiles wake in turns. A corner steam vent joins late — keep away from it.',
+  'Two roads: the slow belt below, the lever shortcut above. A wrong pull only lengthens the road.',
+  'Drops form and lengthen at the pipe mouth — glup, glup. The drip gap is longer than the melt. Wait at the edge.',
+  'Pull the lever the way the sign says — backwards — and the platform covers the sprinkle strip.',
+  'A truffle rolls the whole belt toward you. The side ledges are not decoration — the first one IS the path.',
+  'Vents alternate, never together. Cross in the silence after each blast. The door has a press.',
+  'Dominoes fall from one side only. The second run crosses the ambush post — do not shelter there.',
+  'Three drips in sequence, then a jar sharing a post. Glup and tink-tink are different clocks.',
+  'The mixer arm cuts the vat in two. You saw it from the safe edge first — and what is behind the vat\u2019s back wall?',
+  'The second truffle only LOOKS faster — it is smaller, same speed. A vent guards the ledge between them.',
+  'MINI-BOSS: the mixer cuts the arena, the belt keeps reversing. A pipe at the edge will burst late — watch it swell.',
+  'The backwards lever opens the door — but the dominoes fall TOWARD you here. Pull first, then time it.',
+  'Caramel strands only slow you — jump them. Under a drip pipe, stopping is fatal.',
+  'Hot section: tiles melt in half the time. A solid post follows each tile — one post breathes steam.',
+  'The cart announces itself: light first, then taka-taka. Every rail section has an alcove — one also dodges the gusher.',
+  'The belt here NEVER reverses. Step off before the snare strands, and ride the belt\u2019s speed out.',
+  'Teeth rehearse quietly — chomp, chomp — with a long closed window. The second set follows a melting tile: count both clocks.',
+  'Paired drips fall together now. Then strands, then teeth. Three clocks, one road.',
+  'The first hollow slab drops you somewhere safe — hear the hollow TOK. The second drops you into caramel, with a cart below.',
+  'This belt never runs straight — running against it IS the way forward. The end post is hollow and hides a spike. And the floor at the belt\u2019s end…?',
+  'MINI-BOSS: gushers at both edges, strands slowing the middle. Late, sprinkles rain on a green-rimmed strip — stay out of it.',
+  'Fast presses now. Two alcoves — each is safe from only ONE hazard at a time. Hisss or taka-taka: pick your roof.',
+  'The lift rises halfway, shudders — cable twang — then DROPS. First time it lands safe. The second lift is the real climb; leave at the top.',
+  'Two truffle lanes, side by side. Changing lanes is the game — the teeth set the timing.',
+  'Three hollow slabs in a row: hop, hop, hop. The only solid rest breathes steam — tok vs fweet, your ears are the map.',
+  'The crane block sways, its shadow grows, the chain clinks faster. It never lands when the press does — fixed pattern.',
+  'Chain reaction: the first run\u2019s tak-tak starts them all. One alcove is safe from every run and the cart.',
+  'The second rain strip is narrower and faster. The lift\u2019s drop is tied to the rain — read the green rim below.',
+  'Kernels swell and tick — then a SILENCE — then POP. The silence is part of the tell. Arcs are fixed and slow.',
+  'Kernels pop in clusters of three here. Drips keep their own rhythm between the pops.',
+  'MINI-BOSS: presses close the alley in turns, the cart never stops, the crane drops on its pattern. The safe spot is never the same alcove twice.',
+  'Twin presses count in: tik-TAK, tik-TAK, tik-TAK-TAK. The third cycle changes — but the LAMP never lies.',
+  'The second gusher runs on counter-rhythm: one\u2019s creak answers the other\u2019s. The twins behind you say: forward only.',
+  'Snare-slow under a press cycle is deadly expensive. Jump the strands. Teeth tax the last post too.',
+  'The flood bulges and glups faster before it rises. The upper ledge is always safe — but the rain strip closes the post before it.',
+  'Full production: a truffle, a kernel, a mixer — all at their TRUE speeds. Nothing is sped up. This is the rehearsal.',
+  'Two rails, opposite directions. The alcoves are the only rest — each is safe from both rails and the presses.',
+  'Read it backwards: both signs are honest. The first lever opens the door only pulled reversed. Something in this room counts to three…',
+  'The flood now covers two posts and stays two beats. Hear the glup, board the lift, cross before it drops.',
+  'Four big machines in a row, all honest: lamp tik-TAK, pipe creak, hopper rattle, chain clink. Separate them with your ears.',
+  'THE TEMPERING TITAN: Shift Start, Full Production, Tempering. In the last phase the floor melts FAST and the flood rises twice. Survive — then take the Chocolate-Bar Gate.'
+];
+function hintFor(idx){ return idx < 50 ? HINTS[idx] : HINTS_W2[idx - 50]; }
 function showScreen(name){
   var secs = document.querySelectorAll('.screen');
   for (var i = 0; i < secs.length; i++) secs[i].classList.remove('on');
@@ -2619,8 +3869,8 @@ function closeModal(id){ var m = $(id); if (m) m.classList.remove('on'); }
 function charById(id){ for (var i = 0; i < CHARACTERS.length; i++) if (CHARACTERS[i].id === id) return CHARACTERS[i]; return CHARACTERS[0]; }
 function charUnlocked(ch){ return ch.world <= 1 || worldCleared(ch.world - 1) >= 50; }
 function currentIdx(){
-  for (var i = 0; i < 50; i++) if (save.statuses[i] === 'open') return i;
-  for (var j = 0; j < 50; j++) if (save.statuses[j] === 'skipped') return j;
+  for (var i = 0; i < LEVELS.length; i++) if (save.statuses[i] === 'open') return i;
+  for (var j = 0; j < LEVELS.length; j++) if (save.statuses[j] === 'skipped') return j;
   return 0;
 }
 /* ----- mini character painter for previews (idle pose) ----- */
@@ -2671,7 +3921,7 @@ function renderHome(){
   if (cont) {
     if (save.statuses[ci] === 'open' || save.statuses[ci] === 'skipped') {
       cont.disabled = false;
-      sub.textContent = 'World 1 · Level ' + (ci + 1);
+      sub.textContent = 'World ' + worldOfIdx(ci) + ' · Level ' + levelInWorld(ci);
     } else { cont.disabled = true; sub.textContent = ''; }
   }
   var pc = $('homeChar');
@@ -2731,21 +3981,25 @@ function renderWorlds(){
   }
   grid.innerHTML = html;
   var btns = grid.querySelectorAll('[data-world]');
-  for (var b = 0; b < btns.length; b++) btns[b].addEventListener('click', function(){ SFX.click(); showScreen('levels'); });
+  for (var b = 0; b < btns.length; b++) btns[b].addEventListener('click', function(){ SFX.click(); lsWorld = parseInt(this.getAttribute('data-world'), 10) || 1; selectedNode = -1; showScreen('levels'); });
 }
 /* ----- LEVEL SELECT ----- */
 var selectedNode = -1;
+var lsWorld = 1; // which world's map is on screen (World Select sets it)
 function renderLevels(){
-  var cl = worldCleared(1), co = worldCompleted(1), sk = worldSkipped(1);
-  var med = 0; for (var j = 0; j < 50; j++) med += save.medals[j] || 0;
-  $('lsHead').textContent = '🍭 WORLD 1 · LOLLIPOP MEADOW';
+  var w = lsWorld, base = (w - 1) * 50;
+  var cl = worldCleared(w), co = worldCompleted(w), sk = worldSkipped(w);
+  var med = 0; for (var j = 0; j < 50; j++) med += save.medals[base + j] || 0;
+  var wMeta = WORLDS[w - 1];
+  $('lsHead').textContent = (wMeta ? wMeta.emoji + ' WORLD ' + w + ' · ' + wMeta.name : 'WORLD ' + w);
   $('lsSub').textContent = cl + '/50 cleared · ' + co + ' completed + ' + sk + ' skipped · 🏅 ' + med + ' medals (real completes only)' +
-    ' · ⭐ Secrets in this world: ' + w1SecretsFound() + '/3 — hidden bonus levels: coins + completion only, no medals';
+    ' · ⭐ Secrets in this world: ' + worldSecretsFound(w) + '/3 — hidden bonus levels: coins + completion only, no medals';
+  var zones = w === 2 ? ZONES_W2 : ZONES_W1;
   var zl = $('zoneList'); var html = '';
   for (var z = 0; z < 5; z++) {
-    html += '<div class="zonetitle">ZONE ' + (z + 1) + ' · ' + ZONES_W1[z] + '</div><div class="nodegrid">';
+    html += '<div class="zonetitle">ZONE ' + (z + 1) + ' · ' + zones[z] + '</div><div class="nodegrid">';
     for (var k = 0; k < 10; k++) {
-      var idx = z * 10 + k, n = idx + 1, st = levelStatus(idx), cls = 'node';
+      var idx = base + z * 10 + k, n = idx - base + 1, st = levelStatus(idx), cls = 'node';
       if ((n % 10) === 0) cls += ' boss'; if (n === 50) cls += ' finalboss';
       var label = '' + n, stars = '';
       if (st === 'completed') { var mc = save.medals[idx] || 0; stars = '★★★'.slice(0, mc) + '☆☆☆'.slice(0, 3 - mc); }
@@ -2770,14 +4024,14 @@ function renderLevels(){
 function previewNode(idx){
   selectedNode = idx;
   var pv = $('nodePreview'); if (!pv) return;
-  var st = levelStatus(idx), meta = LEVEL_META[idx], n = idx + 1;
+  var st = levelStatus(idx), meta = metaFor(idx), n = levelInWorld(idx);
   var head = 'Level ' + n + ' — ' + meta[0];
   var body = '', playBtn = '';
   if (st === 'locked') body = '🔒 Locked — clear the level before it to open this one.';
   else {
     var bt = save.bestTimes[idx], dd = save.deathsByLevel[idx] || 0, mc = save.medals[idx] || 0;
     body = (st === 'skipped' ? '⏭ SKIPPED · 0 medals · ' : '🏅 ' + mc + ' medals · ') +
-      'Best: ' + (bt ? fmtTime(bt) : '—') + ' · 💀 Deaths: ' + dd + ' · Pars: 💀 ≤' + meta[2] + ' · ⏱ ≤' + fmtTime(PAR_TIMES[idx] || 30);
+      'Best: ' + (bt ? fmtTime(bt) : '—') + ' · 💀 Deaths: ' + dd + ' · Pars: 💀 ≤' + meta[2] + ' · ⏱ ≤' + fmtTime(parFor(idx) || 30);
     playBtn = '<div style="height:9px"></div><button class="btn small" id="pvPlay">▶ PLAY' + (st === 'skipped' ? ' IT FOR REAL' : '') + '</button>';
   }
   pv.innerHTML = '<b>' + head + '</b><div style="font-weight:700;font-size:13.5px;margin-top:4px">' + body + '</div>' + playBtn;
@@ -2953,13 +4207,13 @@ function enterLevel(idx){
   checkSkipReady._fired = levelDeaths >= 5; // re-arm note: startLevel below resets deaths
   checkSkipReady._fired = false;
   startLevel(idx);
-  var hint = $('gameHint'); if (hint) hint.textContent = '💡 ' + HINTS[idx];
+  var hint = $('gameHint'); if (hint) hint.textContent = '💡 ' + hintFor(idx);
   var tb = $('touch'); if (tb) tb.classList.toggle('on', IS_TOUCH);
 }
 function refreshHUD(){
   if (!L) return;
   var el;
-  el = $('hudLevel'); if (el) el.textContent = L.isSecret ? '⭐ SECRET · ' + L.name : 'W1 · LEVEL ' + (cur + 1);
+  el = $('hudLevel'); if (el) el.textContent = L.isSecret ? '⭐ SECRET · ' + L.name : 'W' + (L.world || worldOfIdx(cur)) + ' · LEVEL ' + levelInWorld(cur);
   el = $('hudDeaths'); if (el) { var t = '💀 ' + levelDeaths; if (el.textContent !== t) el.textContent = t; }
   el = $('hudTime'); if (el) el.textContent = '⏱ ' + fmtTime(levelTime);
   el = $('hudCoins'); if (el) el.textContent = '🪙 +' + runCoins;
@@ -2979,14 +4233,15 @@ function refreshHUD(){
 function pauseGame(){
   if (gState !== 'playing') return;
   pausedFrom = gState; gState = 'paused';
-  var ps = $('pauseSub'); if (ps) ps.textContent = 'Level ' + (cur + 1) + ' — ' + L.name + ' · 💀 ' + levelDeaths + ' · ⏱ ' + fmtTime(levelTime);
+  var ps = $('pauseSub'); if (ps) ps.textContent = 'World ' + (L.world || worldOfIdx(cur)) + ' · Level ' + levelInWorld(cur) + ' — ' + L.name + ' · 💀 ' + levelDeaths + ' · ⏱ ' + fmtTime(levelTime);
   syncSettingsUI();
   openModal('modal-pause');
 }
 function resumeGame(){ closeModal('modal-pause'); if (gState === 'paused') gState = 'playing'; }
 function quitToMap(){ closeModal('modal-pause'); closeModal('modal-result'); trial = null; curSecret = null; gState = 'menu'; showScreen('levels'); }
 function maybeInterstitial(res){
-  AdService.showInterstitial({ levelInWorld: res.level, isBoss: res.level % 10 === 0 });
+  var liw = res.levelInWorld || levelInWorld(res.level - 1);
+  AdService.showInterstitial({ levelInWorld: liw, isBoss: liw % 10 === 0 });
 }
 /* result */
 var lastResult = null, doubleUsed = false;
@@ -3002,7 +4257,7 @@ UIHooks.onWin = function(res){
   var bn = $('btnNext');
   if (res.secret) { // secret levels: completion + coins, NO medals (GDD §6)
     if (rt) rt.textContent = '⭐ SECRET FOUND!';
-    if (rm) rm.innerHTML = '<div style="font-weight:800;font-size:14px;line-height:1.5">“' + res.name + '” — cleared!<br>World 1 secrets: ' + res.secretsW1 + '/3 · Total: ' + res.secretsTotal + '/12<br><span style="opacity:.75">Secrets give coins and completion — no medals.</span></div>';
+    if (rm) rm.innerHTML = '<div style="font-weight:800;font-size:14px;line-height:1.5">“' + res.name + '” — cleared!<br>World ' + (res.secretWorld || 1) + ' secrets: ' + (res.secretsInWorld !== undefined ? res.secretsInWorld : res.secretsW1) + '/3 · Total: ' + res.secretsTotal + '/12<br><span style="opacity:.75">Secrets give coins and completion — no medals.</span></div>';
     if (rs) rs.textContent = '⏱ Time ' + fmtTime(res.time) + ' · 💀 Deaths ' + res.deaths;
     if (rc) rc.textContent = '🪙 Coins +' + res.coins + ' banked · Bank: ' + save.coins;
     if (bn) bn.textContent = 'MAP ▶';
@@ -3010,14 +4265,14 @@ UIHooks.onWin = function(res){
     openModal('modal-result');
     return;
   }
-  if (rt) rt.textContent = 'LEVEL ' + res.level + ' COMPLETE!';
+  if (rt) rt.textContent = 'LEVEL ' + (res.levelInWorld || res.level) + ' COMPLETE!';
   if (rm) rm.innerHTML =
     medalDiv(true, 'COMPLETE', 'cleared it!') +
     medalDiv(res.deaths <= res.deathPar, 'DEATHS ≤ ' + res.deathPar, 'you: ' + res.deaths) +
     medalDiv(res.time <= res.parTime, 'TIME ≤ ' + fmtTime(res.parTime), 'you: ' + fmtTime(res.time));
   if (rs) rs.textContent = '⏱ Time ' + fmtTime(res.time) + ' · 💀 Deaths ' + res.deaths + ' · Best time ' + fmtTime(res.best);
   if (rc) rc.textContent = '🪙 Coins +' + res.coins + ' banked · Bank: ' + save.coins;
-  if (bn) bn.textContent = (cur + 1 < 50) ? 'NEXT ▶' : 'MAP ▶';
+  if (bn) bn.textContent = (levelInWorld(cur) < 50) ? 'NEXT ▶' : 'MAP ▶';
   setTimeout(function(){ SFX.medal(); }, 250);
   openModal('modal-result');
 };
@@ -3031,7 +4286,7 @@ function updateReviveRing(){
   var rs = $('revSecs'); if (rs) rs.textContent = Math.max(0, Math.ceil(reviveLeft));
 }
 UIHooks.onReviveOffer = function(){
-  var cx = $('reviveCtx'); if (cx) cx.textContent = 'BOSS GAUNTLET · Level ' + (cur + 1) + ' — dying here restarts the gauntlet';
+  var cx = $('reviveCtx'); if (cx) cx.textContent = 'BOSS GAUNTLET · Level ' + levelInWorld(cur) + ' — dying here restarts the gauntlet';
   openModal('modal-revive');
   reviveLeft = 5.0; updateReviveRing();
   stopReviveTimer();
@@ -3230,6 +4485,7 @@ function init(){
 /* ---------------- test / debug API ---------------- */
 window.SD = {
   LEVELS: LEVELS, LEVEL_META: LEVEL_META, PAR_TIMES: PAR_TIMES,
+  LEVEL_META_W2: LEVEL_META_W2, PAR_TIMES_W2: PAR_TIMES_W2, ZONES_W2: ZONES_W2,
   SECRET_LEVELS: SECRET_LEVELS, SECRET_META: SECRET_META,
   CHARACTERS: CHARACTERS, SKINS: SKINS, TIPS: TIPS,
   Analytics: Analytics, AdService: AdService,
@@ -3241,7 +4497,8 @@ window.SD = {
   get curSecret(){ return curSecret; }, get respawnPt(){ return respawnPt; },
   get bossResumeT(){ return bossResumeT; }, get runCpTaken(){ return runCpTaken; },
   startLevel: startLevel, stepGame: stepGame, respawn: respawn, restartAttempt: restartAttempt,
-  startSecret: startSecret, winSecret: winSecret, secretsDoneCount: secretsDoneCount, w1SecretsFound: w1SecretsFound,
+  startSecret: startSecret, winSecret: winSecret, secretsDoneCount: secretsDoneCount, w1SecretsFound: w1SecretsFound, worldSecretsFound: worldSecretsFound,
+  get activeChar(){ return activeChar; }, metaFor: metaFor, parFor: parFor, worldOfIdx: worldOfIdx, levelInWorld: levelInWorld,
   winLevel: winLevel, die: die, doSkip: doSkip, reviveAccept: reviveAccept,
   medalsFor: medalsFor, skipThreshold: skipThreshold,
   charUnlocked: function(id){ var c = charById(id); return c ? charUnlocked(c) : false; }, currentIdx: currentIdx,
