@@ -498,6 +498,7 @@ function defaultSave(){
     coins: 0,
     totalDeaths: 0,
     secretsFound: 0,
+    secretsDone: {},     // secretId -> true (real finds only; Marshmallow at 12 in Step 6E)
     ownedSkins: {},      // skinId -> true
     selectedChar: 'biscuit',
     equippedSkin: {},    // charId -> skinId
@@ -588,6 +589,20 @@ var SFX = {
   tok:    function(){ tone(190, .07, 'square', .16, null, 120); },
   chime:  function(){ tone(784, .14, 'sine', .16); tone(1046, .2, 'sine', .14, null, null, .09); },
   spikes: function(){ tone(240, .12, 'square', .13, null, 480); },
+  tik:    function(){ tone(1200, .04, 'square', .07); tone(900, .04, 'square', .06, null, null, .07); },
+  plip:   function(){ tone(700, .07, 'sine', .10, null, 380); },
+  achoo:  function(){ noiseBurst(.28, .14, 1200); tone(300, .28, 'sawtooth', .07, null, 900); },
+  sniff:  function(){ noiseBurst(.3, .06, 2000); },
+  ptooie: function(){ tone(500, .1, 'square', .11, null, 140); noiseBurst(.06, .08, 900); },
+  fizz:   function(){ noiseBurst(.3, .09, 2600); },
+  boom:   function(){ noiseBurst(.32, .22, 420); tone(90, .3, 'sine', .2, null, 40); },
+  creak:  function(){ tone(160, .22, 'triangle', .07, null, 110); },
+  hiss:   function(){ noiseBurst(.36, .08, 3200); },
+  bloop:  function(){ tone(240, .1, 'sine', .11, null, 420); },
+  humm:   function(){ tone(82, .42, 'sawtooth', .1, null, 65); },
+  ding:   function(){ tone(1318, .12, 'sine', .14); tone(1760, .18, 'sine', .11, null, null, .08); },
+  secret: function(){ var n=[659,784,988,1318]; for (var i=0;i<4;i++) tone(n[i], .18, 'sine', .12, null, null, i*.08); },
+  twang:  function(){ tone(196, .3, 'triangle', .1, null, 392); },
   win:    function(){ var n=[523,659,784,1046]; for (var i=0;i<4;i++) tone(n[i], .16, 'square', .13, null, null, i*.09); },
   medal:  function(){ tone(1180, .1, 'sine', .15); tone(1560, .16, 'sine', .13, null, null, .07); }
 };
@@ -733,13 +748,15 @@ var LEVEL_META = [
  ['The Doorstep Bloom',4,2,0],['Everything at Once',5,2,0],['No Safe Grass',5,2,0],['The Long Lie',5,2,0],
  ['The Final Rehearsal',5,2,0],['THE SWEETEST LIE',5,3,1]
 ];
-var PAR_TIMES = [20,25,25,30,30,30,30,35,30,25]; // seconds, levels 1–10 (Step 4 est. times)
+var PAR_TIMES = [20,25,25,30,30,30,30,35,30,25, 30,35,35,40,35,40,35,40,35,30, 40,40,40,45,40,45,40,45,45,30, 40,45,45,50,45,45,50,50,50,30, 50,50,50,55,50,55,55,55,55,55]; // seconds per level (Step 4 est. times; bosses = survival time)
 var TIPS = ['Sugar is not your friend.','If it looks safe, look again.','The sign is lying. Probably.','Every trap tells the truth — once. Listen for it.','A green glow is never a gift.'];
 
 /* ---------------- LEVELS 1–10 (World 1) — geometry ----------------
    Platform kinds: ground | wafer (static) | sham (W1-T01) | bubble (W1-T04) | cube (W1-T05).
    Traps: spikes (W1-T02 patch), gumball (W1-T03), fakeDoor (W1-T06).
    Design limits vs proven physics (rise 145px / distance 184px): rises ≤102, gaps ≤140. */
+function G(x, w){ return { x:x, y:500, w:w, h:40, kind:'ground' }; } // ground segment at meadow level (Step 6A data shorthand)
+function C(x, y){ return { x:x, y:y }; } // coin shorthand
 var LEVELS = [
 { width:1260, start:{x:50,y:462}, door:{x:1172,y:500},
   platforms:[ {x:0,y:500,w:1260,h:40,kind:'ground'},
@@ -798,7 +815,240 @@ var LEVELS = [
   coins:[{x:150,y:462},{x:450,y:462},{x:620,y:462},{x:950,y:462},{x:305,y:382},{x:755,y:382}],
   traps:[ {type:'spikes',x:150,w:48,top:500,boss:0}, {type:'spikes',x:250,w:48,top:500,boss:0},
           {type:'spikes',x:480,w:48,top:500,boss:1}, {type:'spikes',x:580,w:48,top:500,boss:1},
-          {type:'spikes',x:810,w:48,top:500,boss:2}, {type:'spikes',x:900,w:48,top:500,boss:2} ] }
+          {type:'spikes',x:810,w:48,top:500,boss:2}, {type:'spikes',x:900,w:48,top:500,boss:2} ] },
+  // ===== ZONE 2 · GUMMY GROVE (L11–20) =====
+  { width:1440, start:{x:50,y:462}, door:{x:1352,y:500},   // L11 The Sweeper's Waltz (T07 intro, T01)
+    platforms:[ G(0,1440), {x:1010,y:428,w:100,h:14,kind:'wafer'}, {x:1150,y:428,w:110,h:14,kind:'sham'} ],
+    coins:[ C(250,462), C(480,462), C(950,462), C(1055,390), C(1205,390) ],
+    traps:[ {type:'sweeper',x:700,y:315,top:500,len:175,speed:1.5,a0:3.14} ] },
+  { width:1560, start:{x:50,y:462}, door:{x:1472,y:500},   // L12 Between Sweeps (T07x2 counter-phase, T02)
+    platforms:[ G(0,1560) ],
+    coins:[ C(200,462), C(655,462), C(905,462), C(1250,462), C(1400,462) ],
+    traps:[ {type:'sweeper',x:520,y:315,top:500,len:175,speed:1.5,a0:3.14},
+            {type:'sweeper',x:1020,y:315,top:500,len:175,speed:1.5,a0:0},
+            {type:'spikes',x:745,w:60,top:500} ] },
+  { width:1500, start:{x:50,y:462}, door:{x:1412,y:500},   // L13 Honey, It's Raining (T08 intro, T07)
+    platforms:[ G(0,1500) ],
+    coins:[ C(200,462), C(470,462), C(650,462), C(950,462), C(1150,462), C(1330,462) ],
+    traps:[ {type:'dripper',x:470,y:300,top:500,period:2.6,off:0},
+            {type:'dripper',x:1150,y:300,top:500,period:2.9,off:0.7},
+            {type:'sweeper',x:1150,y:315,top:500,len:170,speed:1.5,a0:3.14} ] },
+  { width:1560, start:{x:50,y:462}, door:{x:1472,y:500},   // L14 Picnic Under Fire (T08,T05,T01) - secret S1 via off-path disc
+    secretFall:{x1:245,x2:355,id:'S1'},
+    platforms:[ G(0,240), {x:255,y:462,w:90,h:14,kind:'sham'}, G(360,620), {x:990,y:524,w:220,h:16,kind:'ground'},
+                {x:1005,y:452,w:70,h:24,kind:'cube'}, {x:1075,y:404,w:70,h:24,kind:'cube'}, G(1210,350) ],
+    coins:[ C(150,462), C(300,424), C(1040,414), C(1110,366), C(1330,462), C(1440,462) ],
+    traps:[ {type:'dripper',x:1040,y:290,top:452,period:2.7,off:0},
+            {type:'dripper',x:1330,y:300,top:500,period:2.7,off:1.0} ] },
+  { width:1500, start:{x:50,y:462}, door:{x:1412,y:500},   // L15 Achoo Avenue (T09 intro, T03)
+    platforms:[ G(0,700), G(890,610) ],
+    coins:[ C(300,462), C(660,462), C(820,400), C(1100,462), C(1350,462) ],
+    traps:[ {type:'sneeze',x:640,top:500,dir:1,range:320,period:3.6},
+            {type:'gumball',at:1000,x:1420,top:500,dir:-1,speed:200} ] },
+  { width:1620, start:{x:50,y:462}, door:{x:1500,y:500},   // L16 Blown Off Course (T09x2 alternating, T03 repeat)
+    platforms:[ G(0,700), G(890,730), {x:1250,y:428,w:110,h:14,kind:'wafer'}, {x:1330,y:452,w:26,h:48,kind:'wafer'} ],
+    coins:[ C(250,462), C(815,400), C(1060,462), C(1305,390), C(1420,462), C(1470,462) ],
+    traps:[ {type:'sneeze',x:640,top:500,dir:1,range:320,period:3.6},
+            {type:'sneeze',x:1180,top:500,dir:-1,range:300,period:4.3,off:1.8},
+            {type:'gumball',at:960,x:1600,top:500,dir:-1,speed:190,repeat:4.5} ] },
+  { width:1500, start:{x:50,y:462}, door:{x:1412,y:500},   // L17 Say It, Don't Spray It (T10 intro, T08)
+    platforms:[ G(0,560), {x:570,y:524,w:320,h:16,kind:'ground'}, {x:560,y:470,w:340,h:14,kind:'wafer'},
+                {x:640,y:434,w:22,h:36,kind:'wafer'}, G(900,600), {x:990,y:470,w:90,h:14,kind:'wafer'} ],
+    coins:[ C(200,462), C(590,432), C(730,432), C(870,432), C(1080,462), C(1300,462) ],
+    traps:[ {type:'dripper',x:730,y:290,top:470,period:2.6,off:0},
+            {type:'spitter',x:1010,top:470,dir:-1,period:2.8} ] },
+  { width:1620, start:{x:50,y:462}, door:{x:1532,y:500},   // L18 Crossfire Picnic (T10x2 crossfire, T07)
+    platforms:[ G(0,1620) ],
+    coins:[ C(150,462), C(250,462), C(560,462), C(810,462), C(1060,462), C(1350,462), C(1450,462) ],
+    traps:[ {type:'spitter',x:430,top:500,dir:1,period:2.9,off:0},
+            {type:'spitter',x:1180,top:500,dir:-1,period:3.3,off:0.8},
+            {type:'sweeper',x:810,y:315,top:500,len:175,speed:1.5,a0:3.14} ] },
+  { width:1500, start:{x:50,y:462}, door:{x:1412,y:500},   // L19 The Grass Is Hollow (T11 intro, T02)
+    platforms:[ G(0,470), {x:470,y:500,w:120,h:12,kind:'hollow'}, {x:470,y:524,w:120,h:16,kind:'ground'},
+                G(590,420), {x:1010,y:500,w:120,h:12,kind:'hollow'}, {x:1040,y:530,w:60,h:10,kind:'wafer'}, G(1130,370) ],
+    coins:[ C(200,462), C(530,486), C(700,462), C(900,462), C(1070,492), C(1300,462) ],
+    traps:[ {type:'spikes',x:760,w:48,top:500} ] },
+  { width:1100, start:{x:50,y:462}, door:{x:1014,y:500}, boss:{dur:30,waveEvery:2.6,seq:[0,1,2,1,0,2]},  // L20 Gummy Grove Grind MINI-BOSS (T07+T08)
+    platforms:[ G(0,1100), {x:210,y:420,w:90,h:14,kind:'wafer'}, {x:770,y:420,w:90,h:14,kind:'wafer'} ],
+    coins:[ C(150,462), C(255,382), C(350,462), C(550,462), C(750,462), C(815,382), C(950,462) ],
+    traps:[ {type:'dripper',x:300,y:290,top:500,period:2.6,off:0,boss:0}, {type:'dripper',x:450,y:290,top:500,period:2.6,off:1.1,boss:0},
+            {type:'dripper',x:650,y:290,top:500,period:2.6,off:0.5,boss:2}, {type:'dripper',x:800,y:290,top:500,period:2.6,off:1.5,boss:2},
+            {type:'sweeper',x:550,y:315,top:500,len:175,speed:1.6,a0:3.14,boss:1} ] },
+  // ===== ZONE 3 · BUBBLEGUM BLUFFS (L21–30) =====
+  { width:1680, start:{x:50,y:462}, door:{x:1592,y:500}, checkpoint:{x:1210,y:500},  // L21 Taffy Tightrope (T12 intro, T05)
+    platforms:[ G(0,520), {x:520,y:470,w:290,h:14,kind:'taffy',breakT:3.0}, {x:810,y:470,w:50,h:14,kind:'wafer'},
+                {x:860,y:470,w:320,h:14,kind:'taffy',breakT:3.0}, G(1180,500), {x:1230,y:452,w:70,h:24,kind:'cube'} ],
+    coins:[ C(250,462), C(640,432), C(1000,432), C(1265,414), C(1450,462), C(1560,462) ],
+    traps:[] },
+  { width:1680, start:{x:50,y:462}, door:{x:1592,y:500},   // L22 Stretch It Out (T12x2, T10)
+    platforms:[ G(0,430), {x:430,y:470,w:330,h:14,kind:'taffy',breakT:2.8}, {x:760,y:470,w:130,h:14,kind:'wafer'},
+                {x:890,y:470,w:330,h:14,kind:'taffy',breakT:2.2}, G(1220,460) ],
+    coins:[ C(200,462), C(560,432), C(825,432), C(1020,432), C(1330,462), C(1480,462), C(1560,462) ],
+    traps:[ {type:'spitter',x:1260,top:500,dir:-1,period:2.8,shotDy:64} ] },
+  { width:1500, start:{x:50,y:462}, door:{x:1412,y:500}, checkpoint:{x:800,y:500},  // L23 Mint Condition (T13 intro, T11)
+    platforms:[ G(0,900), {x:900,y:500,w:120,h:12,kind:'hollow'}, {x:910,y:524,w:100,h:16,kind:'ground'}, G(1020,480) ],
+    coins:[ C(200,462), C(420,462), C(700,462), C(960,486), C(1200,462), C(1380,462) ],
+    traps:[ {type:'mine',x:560,top:500}, {type:'mine',x:1075,top:500} ] },
+  { width:1620, start:{x:50,y:462}, door:{x:1532,y:500},   // L24 Minefield Meadow (T13x3, T09)
+    platforms:[ G(0,1620) ],
+    coins:[ C(200,462), C(620,462), C(900,462), C(1150,462), C(1250,462), C(1420,462), C(1480,462) ],
+    traps:[ {type:'mine',x:480,top:500}, {type:'mine',x:760,top:500}, {type:'mine',x:1080,top:500},
+            {type:'sneeze',x:1300,top:500,dir:-1,range:300,period:3.6} ] },
+  { width:1620, start:{x:50,y:462}, door:{x:1532,y:500}, checkpoint:{x:1200,y:500},  // L25 Hook, Line and Swinger (T14 intro, T12)
+    platforms:[ G(0,480), {x:480,y:470,w:670,h:14,kind:'taffy',breakT:4.5}, G(1150,470) ],
+    coins:[ C(200,462), C(350,462), C(650,432), C(815,432), C(980,432), C(1300,462), C(1450,462) ],
+    traps:[ {type:'pendulum',x:815,y:180,len:260,period:3.8} ] },
+  { width:1680, start:{x:50,y:462}, door:{x:1592,y:500},   // L26 Double Dutch (T14x2 opposite phases, T13)
+    platforms:[ G(0,420), {x:420,y:470,w:760,h:14,kind:'taffy',breakT:5}, {x:770,y:470,w:60,h:14,kind:'wafer'}, G(1180,500) ],
+    coins:[ C(200,462), C(540,432), C(710,432), C(890,432), C(1060,432), C(1330,462), C(1560,462) ],
+    traps:[ {type:'pendulum',x:620,y:180,len:250,period:3.8,off:0}, {type:'pendulum',x:980,y:180,len:250,period:3.8,off:1.9},
+            {type:'mine',x:800,top:470} ] },
+  { width:1560, start:{x:50,y:462}, door:{x:1472,y:500}, checkpoint:{x:950,y:500},  // L27 Stuck in the Honey (T15 intro, T08) - secret S2 behind fake wall
+    platforms:[ G(0,1560), {x:1330,y:410,w:30,h:90,kind:'fakewall'}, {x:1362,y:428,w:80,h:14,kind:'wafer'} ],
+    coins:[ C(200,462), C(700,462), C(1000,462), C(1150,462), C(1390,390), C(1440,462) ],
+    traps:[ {type:'mire',x:560,w:300,top:500}, {type:'dripper',x:1150,y:300,top:500,period:2.6,off:0},
+            {type:'secret',id:'S2',x:1366,y:344,w:72,h:84} ] },
+  { width:1680, start:{x:50,y:462}, door:{x:1592,y:500},   // L28 Slow Is Dead (T15x2, T03 repeating lane)
+    platforms:[ G(0,1680), {x:700,y:428,w:100,h:14,kind:'wafer'}, {x:1180,y:428,w:100,h:14,kind:'wafer'} ],
+    coins:[ C(200,462), C(560,462), C(750,390), C(990,462), C(1230,390), C(1400,462), C(1520,462) ],
+    traps:[ {type:'mire',x:430,w:260,top:500}, {type:'mire',x:830,w:320,top:500},
+            {type:'gumball',at:380,x:1620,top:500,dir:-1,speed:185,repeat:7.5} ] },
+  { width:1620, start:{x:50,y:462}, door:{x:1532,y:500}, checkpoint:{x:920,y:500},  // L29 Snap Decision (T16 intro, T14)
+    platforms:[ G(0,560), {x:570,y:524,w:300,h:16,kind:'ground'}, {x:640,y:430,w:120,h:16,kind:'vine',snapDx:-80}, G(870,750) ],
+    coins:[ C(200,462), C(350,462), C(700,392), C(1000,462), C(1200,462), C(1380,462), C(1480,462) ],
+    traps:[ {type:'pendulum',x:1200,y:180,len:250,period:3.8} ] },
+  { width:1150, start:{x:50,y:462}, door:{x:1064,y:500}, boss:{dur:30,checkpointAt:15},  // L30 Bluffs Buffet MINI-BOSS (T12+T14)
+    platforms:[ G(0,1150), {x:120,y:428,w:110,h:14,kind:'taffyB',off:0}, {x:470,y:428,w:110,h:14,kind:'taffyB',off:1.6}, {x:920,y:428,w:110,h:14,kind:'taffyB',off:3.1} ],
+    coins:[ C(100,462), C(175,390), C(400,462), C(525,390), C(700,462), C(975,390), C(1000,462), C(1080,462) ],
+    traps:[ {type:'pendulum',x:300,y:175,len:255,period:3.6,off:0}, {type:'pendulum',x:850,y:175,len:255,period:3.6,off:1.8} ] },
+  // ===== ZONE 4 · CARAMEL CLIFFS (L31–40) =====
+  { width:1560, start:{x:50,y:462}, door:{x:1472,y:500}, checkpoint:{x:820,y:500},  // L31 Mind the Drop (T17 intro, T05)
+    platforms:[ G(0,1560), {x:1330,y:452,w:70,h:24,kind:'cube'} ],
+    coins:[ C(200,462), C(420,462), C(700,462), C(950,462), C(1200,462), C(1365,414), C(1450,462) ],
+    traps:[ {type:'jawbreaker',x:560,y:200,top:500,dir:1,speed:150}, {type:'jawbreaker',x:1080,y:200,top:500,dir:-1,speed:150} ] },
+  { width:1680, start:{x:50,y:462}, door:{x:1592,y:500}, checkpoint:{x:650,y:500},  // L32 Jawbreaker Alley (T17x3, T07)
+    platforms:[ G(0,1680) ],
+    coins:[ C(180,462), C(350,462), C(620,462), C(760,462), C(1010,462), C(1300,462), C(1420,462), C(1560,462) ],
+    traps:[ {type:'jawbreaker',x:480,y:200,top:500,dir:1,speed:150}, {type:'jawbreaker',x:830,y:200,top:500,dir:-1,speed:150},
+            {type:'jawbreaker',x:1180,y:200,top:500,dir:1,speed:150},
+            {type:'sweeper',x:1470,y:315,top:500,len:170,speed:1.5,a0:3.14} ] },
+  { width:1620, start:{x:50,y:462}, door:{x:1532,y:500}, checkpoint:{x:1160,y:500},  // L33 Fizz Pop Crossing (T18 intro, T16)
+    platforms:[ G(0,500), {x:560,y:440,w:80,h:14,kind:'wafer'}, {x:700,y:430,w:130,h:16,kind:'vine',snapDx:-90},
+                {x:960,y:440,w:80,h:14,kind:'wafer'}, G(1120,500) ],
+    coins:[ C(200,462), C(600,402), C(765,392), C(1000,402), C(1300,462), C(1450,462), C(1480,462) ],
+    traps:[ {type:'fountain',x:520,top:500,h:150,period:3.2,off:0}, {type:'fountain',x:1100,top:500,h:150,period:3.2,off:0.9} ] },
+  { width:1680, start:{x:50,y:462}, door:{x:1592,y:500}, checkpoint:{x:1400,y:500},  // L34 Old Faithful's Temper (T18x3 sequence, T15)
+    platforms:[ G(0,1680) ],
+    coins:[ C(200,462), C(620,462), C(900,462), C(1030,462), C(1150,462), C(1360,462), C(1480,462), C(1560,462) ],
+    traps:[ {type:'fountain',x:480,top:500,h:150,period:3.2,off:0}, {type:'fountain',x:760,top:500,h:150,period:3.2,off:1.07},
+            {type:'fountain',x:1230,top:500,h:150,period:3.2,off:2.13}, {type:'mire',x:920,w:220,top:500} ] },
+  { width:1620, start:{x:50,y:462}, door:{x:1532,y:500},   // L35 Drop Zone Picnic (T17x2 over T18)
+    platforms:[ G(0,1620) ],
+    coins:[ C(200,462), C(400,462), C(650,462), C(810,462), C(960,462), C(1200,462), C(1400,462), C(1500,462) ],
+    traps:[ {type:'jawbreaker',x:560,y:200,top:500,dir:1,speed:150}, {type:'jawbreaker',x:1080,y:200,top:500,dir:-1,speed:150},
+            {type:'fountain',x:810,top:500,h:150,period:3.2,off:0.4} ] },
+  { width:1560, start:{x:50,y:462}, door:{x:1472,y:500}, checkpoint:{x:700,y:500},  // L36 Berry Bush League (T19 intro, T11)
+    platforms:[ G(0,1120), {x:1120,y:500,w:120,h:12,kind:'hollow'}, {x:1130,y:524,w:100,h:16,kind:'ground'}, G(1240,320) ],
+    coins:[ C(200,462), C(450,462), C(700,462), C(885,462), C(1180,486), C(1350,462), C(1440,462) ],
+    traps:[ {type:'bush',x:900,top:500,dir:-1,period:3.4} ] },
+  { width:1680, start:{x:50,y:462}, door:{x:1592,y:500}, checkpoint:{x:960,y:500},  // L37 A Thorn in the Path (T19x2, T14)
+    platforms:[ G(0,1680) ],
+    coins:[ C(200,462), C(480,462), C(610,462), C(800,462), C(1070,462), C(1250,462), C(1450,462), C(1560,462) ],
+    traps:[ {type:'bush',x:620,top:500,dir:-1,period:3.4,off:0}, {type:'bush',x:1080,top:500,dir:-1,period:4.1,off:0.5},
+            {type:'pendulum',x:1400,y:180,len:250,period:3.8} ] },
+  { width:1680, start:{x:50,y:462}, door:{x:1592,y:500}, checkpoint:{x:1080,y:500},  // L38 Under Fire, Over Fizz (T19, T18x2)
+    platforms:[ G(0,560), {x:600,y:440,w:90,h:14,kind:'wafer'}, {x:790,y:440,w:90,h:14,kind:'wafer'}, G(940,740) ],
+    coins:[ C(200,462), C(645,402), C(835,402), C(1000,462), C(1200,462), C(1380,462), C(1500,462), C(1560,462) ],
+    traps:[ {type:'fountain',x:578,top:500,h:150,period:3.2,off:0}, {type:'fountain',x:922,top:500,h:150,period:3.2,off:1.2},
+            {type:'bush',x:1010,top:500,dir:-1,period:3.4} ] },
+  { width:1680, start:{x:50,y:462}, door:{x:1592,y:500}, checkpoint:{x:1250,y:500},  // L39 Head in the Clouds (T20 intro, T09)
+    platforms:[ G(0,460), {x:520,y:428,w:120,h:16,kind:'cloud'}, {x:700,y:440,w:70,h:14,kind:'wafer'},
+                {x:830,y:428,w:120,h:16,kind:'cloud'}, {x:1010,y:400,w:120,h:16,kind:'cloud'}, G(1190,490) ],
+    coins:[ C(200,462), C(580,390), C(735,402), C(890,390), C(1070,362), C(1300,462), C(1480,462), C(1560,462) ],
+    traps:[ {type:'sneeze',x:735,top:440,dir:1,range:240,period:3.6} ] },
+  { width:1150, start:{x:50,y:462}, door:{x:1064,y:500}, boss:{dur:30,checkpointAt:15},  // L40 Caramel Cliffhanger MINI-BOSS (T15+T16+T18)
+    platforms:[ G(0,1150), {x:330,y:428,w:110,h:16,kind:'vine',snapDx:-70,bossSec:1}, {x:710,y:428,w:110,h:16,kind:'vine',snapDx:70,bossSec:1} ],
+    coins:[ C(100,462), C(300,462), C(385,390), C(550,462), C(650,462), C(765,390), C(850,462), C(1000,462) ],
+    traps:[ {type:'mire',x:180,w:240,top:500}, {type:'mire',x:730,w:240,top:500},
+            {type:'fountain',x:240,top:500,h:150,period:3.2,off:0,bossSec:0}, {type:'fountain',x:910,top:500,h:150,period:3.2,off:1.1,bossSec:0} ] },
+  // ===== ZONE 5 · THE SWEETEST LIE (L41–50) =====
+  { width:1680, start:{x:50,y:462}, door:{x:1592,y:500}, checkpoint:{x:1000,y:500},  // L41 Clouds and Landmines (T20x2, T13x2)
+    platforms:[ G(0,400), {x:460,y:440,w:90,h:14,kind:'wafer'}, {x:580,y:415,w:110,h:16,kind:'cloud'},
+                {x:720,y:440,w:90,h:14,kind:'wafer'}, G(940,740) ],
+    coins:[ C(200,462), C(505,402), C(635,377), C(765,402), C(1100,462), C(1300,462), C(1480,462), C(1560,462) ],
+    traps:[ {type:'mine',x:505,top:440}, {type:'mine',x:765,top:440} ] },
+  { width:1680, start:{x:50,y:462}, door:{x:1592,y:500}, checkpoint:{x:700,y:500},  // L42 Welcome to Gatling Grove (T21 intro, T10 warm-up)
+    platforms:[ G(0,1680), {x:820,y:452,w:26,h:48,kind:'wafer'}, {x:980,y:452,w:26,h:48,kind:'wafer'} ],
+    coins:[ C(200,462), C(350,462), C(620,462), C(855,462), C(995,462), C(1120,462), C(1330,462), C(1480,462), C(1560,462) ],
+    traps:[ {type:'spitter',x:480,top:500,dir:-1,period:2.8}, {type:'gatling',x:1150,top:500,dir:-1,period:3.4} ] },
+  { width:1760, start:{x:50,y:462}, door:{x:1560,y:500}, checkpoint:{x:1300,y:500},  // L43 Three-Part Harmony (T21+T16) - secret S3 past the door
+    platforms:[ G(0,980), {x:1050,y:430,w:120,h:16,kind:'vine',snapDx:-85}, G(1250,510),
+                {x:1440,y:428,w:90,h:18,kind:'wafer'}, {x:1590,y:404,w:170,h:14,kind:'wafer'} ],
+    coins:[ C(200,462), C(450,462), C(850,462), C(1110,392), C(1350,462), C(1480,462), C(1645,366), C(1730,366) ],
+    traps:[ {type:'gatling',x:700,top:500,dir:-1,period:3.4},
+            {type:'secret',id:'S3',x:1718,y:320,w:40,h:84} ] },
+  { width:1680, start:{x:50,y:462}, door:{x:1592,y:500}, checkpoint:{x:900,y:500},  // L44 Pop, Snap, Crackle (T21, T13x2, T17)
+    platforms:[ G(0,1680), {x:1180,y:452,w:26,h:48,kind:'wafer'} ],
+    coins:[ C(180,462), C(350,462), C(620,462), C(880,462), C(1000,462), C(1150,462), C(1260,462), C(1450,462), C(1560,462) ],
+    traps:[ {type:'mine',x:480,top:500}, {type:'mine',x:1030,top:500},
+            {type:'jawbreaker',x:760,y:200,top:500,dir:1,speed:150}, {type:'gatling',x:1330,top:500,dir:-1,period:3.4} ] },
+  { width:1560, start:{x:50,y:462}, door:{x:1472,y:500}, checkpoint:{x:1100,y:500},  // L45 The Doorstep Bloom (T22 intro, T06)
+    platforms:[ G(0,1560) ],
+    coins:[ C(200,462), C(450,462), C(700,462), C(1050,462), C(1250,462), C(1350,462), C(1380,462), C(1445,430) ],
+    traps:[ {type:'fakeDoor',x:900,top:500}, {type:'rotbloom',x:1418,w:54,top:500} ] },
+  { width:1680, start:{x:50,y:462}, door:{x:1592,y:500}, checkpoint:{x:1050,y:500},  // L46 Everything at Once (T22+T21+T18)
+    platforms:[ G(0,1680), {x:480,y:452,w:26,h:48,kind:'wafer'}, {x:700,y:452,w:26,h:48,kind:'wafer'} ],
+    coins:[ C(150,462), C(400,462), C(620,462), C(810,462), C(1010,462), C(1200,462), C(1380,462), C(1480,462), C(1553,430) ],
+    traps:[ {type:'gatling',x:240,top:500,dir:1,period:3.4}, {type:'fountain',x:900,top:500,h:150,period:3.2,off:0.4},
+            {type:'rotbloom',x:1526,w:54,top:500} ] },
+  { width:1680, start:{x:50,y:462}, door:{x:1592,y:500}, checkpoint:{x:950,y:500},  // L47 No Safe Grass (T02x3, T11x2, T22)
+    platforms:[ G(0,560), {x:560,y:500,w:120,h:12,kind:'hollow'}, {x:570,y:524,w:100,h:16,kind:'ground'}, G(680,620),
+                {x:1300,y:500,w:120,h:12,kind:'hollow'}, {x:1310,y:524,w:100,h:16,kind:'ground'}, G(1420,260) ],
+    coins:[ C(180,462), C(500,462), C(620,486), C(900,462), C(1080,462), C(1250,462), C(1360,486), C(1470,462), C(1553,430) ],
+    traps:[ {type:'spikes',x:420,w:48,top:500}, {type:'spikes',x:760,w:48,top:500}, {type:'spikes',x:1150,w:48,top:500},
+            {type:'rotbloom',x:1526,w:54,top:500} ] },
+  { width:1760, start:{x:50,y:462}, door:{x:1660,y:500}, checkpoint:{x:1280,y:500},  // L48 The Long Lie (T06x2, T20x2, T22)
+    platforms:[ G(0,760), {x:820,y:428,w:120,h:16,kind:'cloud'}, {x:1010,y:428,w:120,h:16,kind:'cloud'}, G(1240,520) ],
+    coins:[ C(200,462), C(450,462), C(700,462), C(880,390), C(1070,390), C(1200,462), C(1400,462), C(1500,462), C(1621,430) ],
+    traps:[ {type:'fakeDoor',x:600,top:500}, {type:'fakeDoor',x:1330,top:500}, {type:'rotbloom',x:1594,w:54,top:500} ] },
+  { width:1760, start:{x:50,y:462}, door:{x:1672,y:500}, checkpoint:{x:1300,y:500},  // L49 The Final Rehearsal (T07+T14+T16+T21)
+    platforms:[ G(0,1010), {x:1020,y:524,w:240,h:16,kind:'ground'}, {x:1060,y:430,w:120,h:16,kind:'vine',snapDx:-85},
+                G(1260,500), {x:1360,y:452,w:26,h:48,kind:'wafer'} ],
+    coins:[ C(150,462), C(300,462), C(620,462), C(800,462), C(950,462), C(1120,392), C(1230,462), C(1400,462), C(1560,462), C(1640,462) ],
+    traps:[ {type:'sweeper',x:430,y:315,top:500,len:170,speed:1.5,a0:3.14},
+            {type:'pendulum',x:800,y:180,len:250,period:3.8},
+            {type:'gatling',x:1480,top:500,dir:-1,period:3.4} ] },
+  { width:1240, start:{x:50,y:462}, door:{x:1150,y:500},   // L50 THE SWEETEST LIE - FINAL BOSS (55s, 3 phases)
+    boss:{dur:55,phases:[{name:'Picnic Panic',dur:20},{name:'Everything Is Cake',dur:20},{name:'The Door Is Lying',dur:15}]},
+    platforms:[ G(0,1240), {x:300,y:420,w:110,h:14,kind:'sham',bphase:2}, {x:520,y:420,w:110,h:14,kind:'sham',bphase:2}, {x:740,y:420,w:110,h:14,kind:'sham',bphase:2} ],
+    coins:[ C(120,462), C(450,462), C(540,462), C(680,462), C(900,462), C(1060,462), C(355,382), C(575,382), C(795,382), C(1123,430) ],
+    traps:[ {type:'spikes',x:340,w:48,top:500,bphase:1,off:0}, {type:'spikes',x:560,w:48,top:500,bphase:1,off:1.1}, {type:'spikes',x:800,w:48,top:500,bphase:1,off:2.2},
+            {type:'gumball',bossMode:'phase',bphase:1,x:30,top:500,dir:1,speed:200,period:4.2,off:0},
+            {type:'gumball',bossMode:'phase',bphase:1,x:1180,top:500,dir:-1,speed:200,period:4.2,off:2.1},
+            {type:'sweeper',x:620,y:315,top:500,len:175,speed:1.6,a0:3.14,bphase:2},
+            {type:'fountain',x:240,top:500,h:150,period:3.2,off:0,bphase:2}, {type:'fountain',x:1000,top:500,h:150,period:3.2,off:1.1,bphase:2},
+            {type:'fakeDoor',x:620,top:500,bphase:3}, {type:'rotbloom',x:1096,w:54,top:500,bphase:3} ] }
+];
+
+// Secret levels (Step 6A): separate entries, reached only via hidden routes. Coins + completion, NO medals.
+var SECRET_META = [ // [name, tease]
+  ['Under the Picnic Blanket', 'You fell through the picnic. The underside keeps its own crumbs.'],
+  ['The Beehive Attic', 'Behind the honey wall, the bees keep a quiet attic. Mind the drips.'],
+  ['First Crumbs', 'Past the door everyone stops at. The first crumbs of the grove.']
+];
+var SECRET_LEVELS = [
+  { id:'S1', width:1320, start:{x:50,y:462}, door:{x:1232,y:500},   // S1 (from L14)
+    platforms:[ G(0,1320), {x:400,y:428,w:110,h:14,kind:'sham'}, {x:620,y:428,w:110,h:14,kind:'sham'} ],
+    coins:[ C(200,462), C(455,390), C(675,390), C(900,462), C(1050,462), C(1180,462) ],
+    traps:[ {type:'spikes',x:850,w:48,top:500} ] },
+  { id:'S2', width:1440, start:{x:50,y:462}, door:{x:1352,y:500},   // S2 (from L27)
+    platforms:[ G(0,500), {x:560,y:440,w:90,h:14,kind:'wafer'}, {x:740,y:440,w:90,h:14,kind:'wafer'}, {x:920,y:440,w:90,h:14,kind:'wafer'}, G(1080,360) ],
+    coins:[ C(200,462), C(605,402), C(785,402), C(965,402), C(1150,462), C(1280,462), C(1300,462) ],
+    traps:[ {type:'dripper',x:605,y:280,top:440,period:2.6,off:0}, {type:'dripper',x:785,y:280,top:440,period:2.6,off:0.9}, {type:'dripper',x:965,y:280,top:440,period:2.6,off:1.8} ] },
+  { id:'S3', width:1100, start:{x:50,y:462}, door:{x:1014,y:500}, sign:{x:520,text:'Home is where the crumbs are.'},  // S3 (from L43)
+    platforms:[ G(0,1100), {x:350,y:428,w:110,h:14,kind:'sham'}, {x:600,y:428,w:110,h:14,kind:'sham'} ],
+    coins:[ C(200,462), C(405,390), C(655,390), C(850,462), C(960,462) ],
+    traps:[] }
 ];
 
 /* ================================================================
@@ -815,11 +1065,31 @@ var camX = 0, shakeT = 0, slowmoT = 0, deathFlashT = 0;
 var particles = [], balls = [];
 var reviveUsed = false, lastSafeToast = -9;
 var bossState = null;
+// Step 6A state: checkpoints, boss-phase resume, secrets
+var respawnPt = null, runCpTaken = false, bossResumeT = 0, curSecret = null, hostIdx = -1;
 var activeChar = CHARACTERS[0], activeSkin = null; // resolved per attempt (trials included)
 var trial = null; // {charId?, skinId?} for exactly one level
 var UIHooks = { onWin:null, onReviveOffer:null, onDeath:null, onSkipReady:null };
 
-function platSolid(p){ return p.state === 'idle' || p.state === 'crack' || p.state === 'fusing'; }
+function platSolid(p){
+  if (p.kind === 'fakewall') return false;                        // looks solid, never is
+  if (p.bphase && (!bossState || bossState.phase !== p.bphase)) return false; // L50 phase discs
+  if (p.kind === 'taffyB') return p.state === 'idle' || p.state === 'tell';   // boss-clock blink (L30)
+  if (p.kind === 'taffy') return p.state === 'idle';                           // present until it snaps
+  if (p.kind === 'vine' || p.kind === 'cloud') return true;                    // always solid (they move you)
+  return p.state === 'idle' || p.state === 'crack' || p.state === 'fusing';    // sham / hollow / bubble / cube / plain
+}
+function segDist(px, py, x1, y1, x2, y2){ // distance from point to segment
+  var dx = x2 - x1, dy = y2 - y1, l2 = (dx * dx + dy * dy) || 1;
+  var tt = ((px - x1) * dx + (py - y1) * dy) / l2; tt = clamp(tt, 0, 1);
+  var cx = x1 + dx * tt, cy = y1 + dy * tt, ex = px - cx, ey = py - cy;
+  return Math.sqrt(ex * ex + ey * ey);
+}
+function circleBox(cx, cy, r, b){ // circle vs AABB overlap
+  var nx = clamp(cx, b.x, b.x + b.w), ny = clamp(cy, b.y, b.y + b.h);
+  var dx = cx - nx, dy = cy - ny;
+  return (dx * dx + dy * dy) < r * r;
+}
 function solidsList(){
   var s = [];
   if (!L) return s;
@@ -834,46 +1104,134 @@ function resolveCharSkin(){
   activeSkin = null;
   if (sid) for (var j = 0; j < SKINS.length; j++) if (SKINS[j].id === sid) activeSkin = SKINS[j];
 }
+function buildTraps(d, bankKey){
+  return (d.traps || []).map(function(t){
+    var o = {}; for (var k in t) o[k] = t[k]; // copy ALL authored params (period, len, bphase, ...)
+    o.state = 'idle'; o.t = 0; o.rise = 0; o.fired = false; o.tokIn = false;
+    o.cyc = t.off || 0; o.onT = 0; o.lastFired = -99; o.armA = t.a0 || 0; o.firedCycle = -99; o.vol = 0; o._spawnedFor = -1;
+    if (o.type === 'dripper') o.fallDur = Math.sqrt(Math.max(30, (o.top - (o.y + 16))) / 1500);
+    return o;
+  });
+}
+function buildPlatforms(d){
+  return d.platforms.map(function(p){
+    var o = {}; for (var k in p) o[k] = p[k];
+    if (o.fuse === undefined) o.fuse = 1.2;
+    if (o.group === undefined) o.group = null;
+    o.state = 'idle'; o.t = 0; o.y0 = p.y; o.x0 = p.x; o.vy = 0; o.sink = 0; o.stretch = 0; o.creaked = false;
+    return o;
+  });
+}
 function setupLevel(idx){
   var d = LEVELS[idx], meta = LEVEL_META[idx];
   L = {
     idx: idx, name: meta[0], width: d.width, start: d.start, door: d.door, boss: d.boss || null,
     parTime: PAR_TIMES[idx], deathPar: meta[2],
-    platforms: d.platforms.map(function(p){ return { x:p.x, y:p.y, w:p.w, h:p.h, kind:p.kind, fuse:p.fuse || 1.2, group:p.group || null, state:'idle', t:0, y0:p.y, vy:0 }; }),
+    checkpoint: d.checkpoint || null, secretFall: d.secretFall || null, sign: d.sign || null, isSecret: null,
+    platforms: buildPlatforms(d),
     coins: d.coins.map(function(c, i){ return { x:c.x, y:c.y, i:i, got:false, banked: !!((save.coinMap[idx] || [])[i]) }; }),
-    traps: (d.traps || []).map(function(t){ return { type:t.type, x:t.x, w:t.w, top:t.top, at:t.at, y:t.y, dir:t.dir, speed:t.speed, boss:t.boss, state:'idle', t:0, rise:0, fired:false, tokIn:false }; })
+    traps: buildTraps(d)
   };
   player = { x: L.start.x, y: L.start.y, w: 28, h: 38, vx: 0, vy: 0, face: 1, grounded: false, coyote: 0, buffer: 0,
-             groundRef: null, dead: false, deadT: 0, runPh: 0, prevJump: false, squash: 0, stretch: 0, justLanded: false, invulnT: 0 };
+             groundRef: null, dead: false, deadT: 0, runPh: 0, prevJump: false, squash: 0, stretch: 0, justLanded: false, invulnT: 0,
+             gustT: 0, gustDir: 1 };
   balls = []; particles = [];
   levelTime = 0; lastSafeToast = -9;
-  bossState = L.boss ? { t: 0, dur: L.boss.dur, open: false, wave: -1, waveT: 0, seq: [0,1,2,1,0,2] } : null;
+  bossState = L.boss ? { t: 0, dur: L.boss.dur, open: false, wave: -1, waveT: 0,
+                         seq: L.boss.seq || [0,1,2,1,0,2], sec: -1, phase: 1,
+                         phaseName: (L.boss.phases ? L.boss.phases[0].name : null), cpHit: false } : null;
   camX = clamp(player.x + 14 - VW / 2, 0, Math.max(0, L.width - VW));
   resolveCharSkin();
 }
+/* ---------------- secrets (Step 6A) ---------------- */
+function secretData(id){ for (var i = 0; i < SECRET_LEVELS.length; i++) if (SECRET_LEVELS[i].id === id) return SECRET_LEVELS[i]; return null; }
+function secretMeta(id){ for (var i = 0; i < SECRET_LEVELS.length; i++) if (SECRET_LEVELS[i].id === id) return SECRET_META[i]; return ['', '']; }
+function secretsDoneCount(){ var n = 0; for (var k in (save.secretsDone || {})) if (save.secretsDone[k]) n++; return n; }
+function coinKey(){ return curSecret ? curSecret : cur; }
+function setupSecret(id){
+  var d = secretData(id); if (!d) return;
+  var meta = secretMeta(id);
+  L = {
+    idx: cur, name: meta[0], width: d.width, start: d.start, door: d.door, boss: null,
+    parTime: 999, deathPar: 0,
+    checkpoint: null, secretFall: null, sign: d.sign || null, isSecret: id,
+    platforms: buildPlatforms(d),
+    coins: d.coins.map(function(c, i){ return { x:c.x, y:c.y, i:i, got:false, banked: !!((save.coinMap[id] || [])[i]) }; }),
+    traps: buildTraps(d)
+  };
+  player = { x: L.start.x, y: L.start.y, w: 28, h: 38, vx: 0, vy: 0, face: 1, grounded: false, coyote: 0, buffer: 0,
+             groundRef: null, dead: false, deadT: 0, runPh: 0, prevJump: false, squash: 0, stretch: 0, justLanded: false, invulnT: 0,
+             gustT: 0, gustDir: 1 };
+  balls = []; particles = [];
+  levelTime = 0; lastSafeToast = -9;
+  bossState = null;
+  camX = clamp(player.x + 14 - VW / 2, 0, Math.max(0, L.width - VW));
+  resolveCharSkin();
+}
+function startSecret(id){
+  hostIdx = cur; curSecret = id;
+  levelDeaths = 0; runCoins = 0; reviveUsed = false;
+  respawnPt = null; runCpTaken = false; bossResumeT = 0;
+  setupSecret(id); gState = 'playing';
+  SFX.secret();
+  toast('⭐ SECRET FOUND — ' + L.name + '!');
+  Analytics.push('secret_enter', { secret: id, fromLevel: hostIdx + 1 });
+  refreshHUD();
+}
+function winSecret(){
+  if (gState !== 'playing') return;
+  gState = 'won';
+  var id = curSecret, meta = secretMeta(id);
+  if (!save.secretsDone) save.secretsDone = {};
+  var first = !save.secretsDone[id];
+  save.secretsDone[id] = true;
+  save.secretsFound = secretsDoneCount();
+  persist();
+  SFX.win(); SFX.secret();
+  burst(L.door.x + 20, L.door.y - 40, ['#B388FF', '#FFF3B0', '#FF6FA5'], 30, 230);
+  Analytics.push('secret_complete', { secret: id, first: first, coins: runCoins, deaths: levelDeaths });
+  var res = { secret: true, id: id, level: hostIdx + 1, name: meta[0], deaths: levelDeaths, time: levelTime,
+              coins: runCoins, deathPar: 0, parTime: 999, best: null, wasSkipped: false,
+              secretsW1: w1SecretsFound(), secretsTotal: save.secretsFound };
+  trial = null;
+  if (UIHooks.onWin) UIHooks.onWin(res);
+}
+function w1SecretsFound(){ var n = 0; if (!save.secretsDone) return 0; for (var i = 0; i < SECRET_LEVELS.length; i++) if (save.secretsDone[SECRET_LEVELS[i].id]) n++; return n; }
 function startLevel(idx){
   cur = idx; levelDeaths = 0; runCoins = 0; reviveUsed = false;
+  curSecret = null; hostIdx = -1;
+  respawnPt = null; runCpTaken = false; bossResumeT = 0; // checkpoint is per-run: menu start resets it
   setupLevel(idx); gState = 'playing';
   Analytics.push('level_start', { level: idx + 1, name: L.name });
   if (typeof startMusic === 'function') startMusic(!!L.boss);
   refreshHUD();
 }
-function restartAttempt(){ // boss give-up / final death: fresh attempt, deaths kept
-  var d = levelDeaths, rc = runCoins;
-  setupLevel(cur); levelDeaths = d; runCoins = rc; reviveUsed = false; gState = 'playing';
+function restartAttempt(){ // boss give-up / final death: fresh attempt, deaths kept; boss clock resumes at phase/checkpoint
+  var d = levelDeaths, rc = runCoins, sid = curSecret;
+  if (sid) setupSecret(sid); else setupLevel(cur);
+  levelDeaths = d; runCoins = rc; reviveUsed = false; gState = 'playing';
+  respawnPt = null; runCpTaken = false; // a restart also resets the flag (per-run rule)
+  if (!sid && L.boss && bossState && bossResumeT > 0) bossState.t = bossResumeT;
   refreshHUD();
 }
-function respawn(){ // normal instant respawn (<0.4s), deaths + banked coins kept
-  var d = levelDeaths, rc = runCoins;
-  setupLevel(cur); levelDeaths = d; runCoins = rc; gState = 'playing';
+function respawn(){ // normal instant respawn (<0.4s), deaths + banked coins kept; checkpoint flag moves the point
+  var d = levelDeaths, rc = runCoins, pt = respawnPt, sid = curSecret;
+  if (sid) setupSecret(sid); else setupLevel(cur);
+  levelDeaths = d; runCoins = rc; gState = 'playing';
+  if (pt && !sid) {
+    player.x = pt.x; player.y = pt.y; player.vx = 0; player.vy = 0;
+    camX = clamp(player.x + 14 - VW / 2, 0, Math.max(0, L.width - VW));
+  }
   refreshHUD();
 }
 function reviveAccept(){
   reviveUsed = true;
-  var bt = bossState ? bossState.t : 0, bw = bossState ? bossState.wave : -1;
+  var bt = bossState ? bossState.t : 0, bw = bossState ? bossState.wave : -1,
+      bsec = bossState ? bossState.sec : -1, bph = bossState ? bossState.phase : 1,
+      bpn = bossState ? bossState.phaseName : null, bcp = bossState ? bossState.cpHit : false;
   var d = levelDeaths, rc = runCoins;
   setupLevel(cur); levelDeaths = d; runCoins = rc;
-  if (bossState) { bossState.t = bt; bossState.wave = bw; }
+  if (bossState) { bossState.t = bt; bossState.wave = bw; bossState.sec = bsec; bossState.phase = bph; bossState.phaseName = bpn; bossState.cpHit = bcp; }
   player.invulnT = 2.0; // the 2-second shield
   gState = 'playing';
   Analytics.push('revive_taken', { level: cur + 1 });
@@ -919,6 +1277,7 @@ function die(cause){
 }
 function checkSkipReady(){
   if (gState !== 'playing') return;
+  if (L && L.isSecret) return; // no skipping inside a secret level
   var need = L && L.boss ? 10 : 5;
   if (levelDeaths >= need && !checkSkipReady._fired) {
     checkSkipReady._fired = true;
@@ -992,33 +1351,273 @@ function updatePlatforms(dt){
         p.t += dt;
         if (p.t >= 0.55) { p.state = 'gone'; p.t = 0; SFX.crumble(); burst(p.x + p.w/2, p.y + 8, ['#FFFFFF', '#FFF3B0', '#E8DCC8'], 8, 110); }
       } else if (p.state === 'gone') { p.t += dt; if (p.t > 2.2) { p.state = 'idle'; p.t = 0; } }
+    } else if (p.kind === 'hollow') { // T11 grass lid: quick crack, falls, respawns
+      if (p.state === 'idle' && stood) { p.state = 'crack'; p.t = 0; SFX.crrrk(); }
+      else if (p.state === 'crack') {
+        p.t += dt;
+        if (p.t >= 0.18) { p.state = 'falling'; p.vy = 0; SFX.crumble(); }
+      } else if (p.state === 'falling') {
+        var dyH = p.vy * dt; p.vy = Math.min(p.vy + 2600 * dt, 620); p.y += p.vy * dt;
+        if (stood) player.y = p.y - player.h;
+        if (p.y > VH + 90) { p.state = 'gone'; p.t = 0; }
+      } else if (p.state === 'gone') { p.t += dt; if (p.t > 2.2) { p.y = p.y0; p.state = 'idle'; p.t = 0; p.vy = 0; } }
+    } else if (p.kind === 'taffy') { // T12: stretches thin under weight, snaps if stood on too long
+      var breakT = p.breakT || 1.6;
+      if (stood) {
+        p.stretch = Math.min(1, p.stretch + dt / breakT);
+        if (p.stretch > 0.5 && !p.creaked) { p.creaked = true; SFX.creak(); }
+        if (p.stretch >= 1 && p.state === 'idle') { p.state = 'gone'; p.t = 0; SFX.crumble(); burst(p.x + p.w / 2, p.y + 6, ['#FF9DBD', '#FF6FA5'], 10, 120); }
+      } else {
+        p.stretch = Math.max(0, p.stretch - dt / (breakT * 1.4));
+        if (p.stretch < 0.4) p.creaked = false;
+      }
+      if (p.state === 'gone') { p.t += dt; if (p.t > 2.4) { p.state = 'idle'; p.t = 0; p.stretch = 0; p.creaked = false; } }
+    } else if (p.kind === 'cloud') { // T20: sinks slowly under weight, always within reach of the next perch
+      if (stood) {
+        var sinkDy = Math.min(26 * dt, 64 - p.sink);
+        if (sinkDy > 0) { p.sink += sinkDy; p.y = p.y0 + p.sink; player.y += sinkDy; }
+      } else if (p.sink > 0) {
+        var upDy = Math.min(14 * dt, p.sink);
+        p.sink -= upDy; p.y = p.y0 + p.sink;
+      }
+    } else if (p.kind === 'vine') { // T16: stretch ~1s, then SNAPS sideways carrying the rider
+      if (p.bossSec !== undefined && p.bossSec !== null) { // L40 boss-clock vines: snap while their section runs
+        var secOn = bossState && !bossState.open && bossState.sec === p.bossSec;
+        if (secOn && p.state === 'idle') { p.state = 'stretch'; p.t = 0; }
+        else if (!secOn && p.state === 'idle' && p.x !== p.x0) { p.x += clamp(p.x0 - p.x, -90 * dt, 90 * dt); if (Math.abs(p.x - p.x0) < 1) p.x = p.x0; }
+      }
+      if (p.state === 'idle' && stood && !(p.bossSec !== undefined && p.bossSec !== null)) { p.state = 'stretch'; p.t = 0; }
+      else if (p.state === 'stretch') {
+        p.t += dt;
+        if (p.t >= 1.0) {
+          p.state = 'snap'; p.t = 0; SFX.twang();
+          var fromX = p.x; p.x += (p.snapDx || -80);
+          if (stood) player.x += (p.snapDx || -80);
+          burst(p.x + p.w / 2, p.y, ['#7A4FA3', '#B388FF'], 7, 100);
+        }
+      } else if (p.state === 'snap') { p.t += dt; if (p.t >= 1.1) { p.state = 'return'; p.t = 0; } }
+      else if (p.state === 'return') {
+        p.t += dt;
+        p.x += clamp(p.x0 - p.x, -64 * dt, 64 * dt);
+        if (Math.abs(p.x - p.x0) < 1.2 || p.t > 1.6) { p.x = p.x0; p.state = 'idle'; p.t = 0; }
+      }
+    } else if (p.kind === 'taffyB') { // L30 perches on the boss clock: on 3.0s, flicker-tell 0.5s, gone 1.4s
+      var cycB = (levelTime + (p.off || 0)) % 4.9;
+      var want = cycB < 3.0 ? 'idle' : (cycB < 3.5 ? 'tell' : 'off');
+      if (want !== p.state) {
+        p.state = want;
+        if (want === 'tell') SFX.creak();
+        if (want === 'idle') burst(p.x + p.w / 2, p.y + 4, ['#FF9DBD', '#FFFFFF'], 5, 80);
+      }
     }
   }
+}
+/* -------- Step 6A trap machines (Worlds Bible tells: 0.3–0.5s, visual + audio) -------- */
+function spawnBall(o){ balls.push(o); }
+function spikeKillCheck(t, cause){
+  if (t.rise > 0.55 && !player.dead && player.invulnT <= 0) {
+    if (overlap(player, { x: t.x + 4, y: t.top - 15, w: t.w - 8, h: 15 })) die(cause);
+  }
+}
+function bossSpikeStep(t, dt, active, tellT, upT, cause){ // spike/rotbloom on a boss clock: 'active' only arms it; a started cycle always completes
+  if (t.state === 'idle' || t.state === 'cool') {
+    if (active) { setTrapState(t, 'tell'); SFX.sproing(); if (t.type === 'rotbloom') SFX.humm(); }
+  }
+  else if (t.state === 'tell') { t.t += dt; t.rise = Math.min(0.25, t.t / tellT * 0.25); if (t.t >= tellT) { setTrapState(t, 'up'); SFX.spikes(); } }
+  else if (t.state === 'up') { t.t += dt; t.rise = Math.min(1, t.rise + dt * 6); if (t.t >= upT) setTrapState(t, 'down'); }
+  else if (t.state === 'down') { t.t += dt; t.rise = Math.max(0, t.rise - dt * 6); if (t.rise <= 0) { setTrapState(t, 'idle'); t.rise = 0; } }
+  spikeKillCheck(t, cause);
+}
+function sweeperHeads(t){ // arm angle -> sample points (butt, mid, head)
+  var a = t.armA, out = [];
+  var fr = [0, 0.55, 1];
+  for (var i = 0; i < 3; i++) out.push({ x: t.x + Math.sin(a) * t.len * fr[i], y: t.y + Math.cos(a) * t.len * fr[i], fr: fr[i] });
+  return out;
+}
+function sweeperStep(t, dt, active){
+  if (active) {
+    t.onT += dt;
+    if (t.onT < 0.45) { if (t.state !== 'tell') { setTrapState(t, 'tell'); SFX.tik(); } t.state = 'tell'; }
+    else {
+      t.state = 'on';
+      t.armA = (t.a0 || 0) + (t.speed || 1.5) * (t.onT - 0.45);
+      if (!player.dead && player.invulnT <= 0) {
+        var hs = sweeperHeads(t);
+        for (var i = 0; i < 3; i++) if (circleBox(hs[i].x, hs[i].y, hs[i].fr === 1 ? 19 : 13, player)) { die('sweeper'); return; }
+      }
+    }
+  } else {
+    t.onT = 0; t.state = 'idle';
+    var park = 3.14, d = park - t.armA; // park the arm pointing UP when its watch is off
+    while (d > 3.14) d -= 6.283; while (d < -3.14) d += 6.283;
+    t.armA += clamp(d, -2.4 * dt, 2.4 * dt);
+  }
+}
+function dripperStep(t, dt, active){ // deterministic cycle: shadow first, accelerating plips, then the drop
+  if (!active) { t.state = 'idle'; return; }
+  var period = t.period || 2.6;
+  t.cyc += dt;
+  var ph = t.cyc % period, cycIdx = Math.floor(t.cyc / period);
+  var tellStart = period - 0.85 - t.fallDur, fallStart = period - 0.4 - t.fallDur, splatEnd = period - 0.1;
+  if (ph >= tellStart && ph < fallStart) {
+    t.state = 'tell';
+    if (t.firedCycle !== cycIdx) { t.firedCycle = cycIdx; SFX.plip(); }
+    t.dropY = t.y + 16;
+  } else if (ph >= fallStart && ph < period - 0.4) {
+    t.state = 'fall';
+    var tau = ph - fallStart;
+    t.dropY = Math.min(t.y + 16 + 1500 * tau * tau, t.top - 6);
+    if (!player.dead && player.invulnT <= 0 && overlap(player, { x: t.x - 9, y: t.dropY - 14, w: 18, h: 18 })) die('honey-drop');
+  } else if (ph >= period - 0.4 && ph < splatEnd) {
+    t.state = 'splat'; t.dropY = t.top - 4;
+    if (!player.dead && player.invulnT <= 0 && overlap(player, { x: t.x - 22, y: t.top - 9, w: 44, h: 9 })) die('honey-drop');
+  } else t.state = 'idle';
+}
+function fountainStep(t, dt, active){ // bubbles rise 0.5s, then the column; long honest off-phase
+  if (!active) { t.state = 'idle'; return; }
+  var period = t.period || 3.2;
+  t.cyc += dt;
+  var ph = t.cyc % period;
+  if (ph >= period - 1.6 && ph < period - 1.1) {
+    if (t.state !== 'tell') SFX.hiss();
+    t.state = 'tell';
+  } else if (ph >= period - 1.1) {
+    t.state = 'erupt';
+    if (!player.dead && player.invulnT <= 0 && overlap(player, { x: t.x - 10, y: t.top - (t.h || 150), w: 20, h: (t.h || 150) })) die('fizz-fountain');
+  } else t.state = 'idle';
 }
 function updateTraps(dt){
   var pcx = player.x + player.w / 2;
   for (var i = 0; i < L.traps.length; i++) {
     var t = L.traps[i];
-    if (t.type === 'spikes') {
-      if (t.boss !== undefined && t.boss !== null) continue; // boss waves drive these
+    if (t.boss !== undefined && t.boss !== null) continue;      // boss sections drive these
+    if (t.bossSec !== undefined && t.bossSec !== null) continue; // L40 boss-clock traps
+    if (t.bphase !== undefined && t.bphase !== null) continue;   // L50 phase traps
+    if (t.type === 'spikes' || t.type === 'rotbloom') {
+      var tellT = t.type === 'rotbloom' ? 0.5 : 0.4, upT = t.type === 'rotbloom' ? 1.2 : 1.0, trig = t.type === 'rotbloom' ? 90 : 55;
       if (t.state === 'idle') {
-        var near = Math.abs(pcx - (t.x + t.w / 2)) < t.w / 2 + 55 && player.y + player.h > t.top - 52 && player.y + player.h < t.top + 24;
-        if (near && !player.dead) { setTrapState(t, 'tell'); SFX.sproing(); }
-      } else if (t.state === 'tell') { t.t += dt; t.rise = Math.min(0.25, t.t / 0.4 * 0.25); if (t.t >= 0.4) { setTrapState(t, 'up'); SFX.spikes(); } }
-      else if (t.state === 'up') { t.t += dt; t.rise = Math.min(1, t.rise + dt * 6); if (t.t >= 1.0) setTrapState(t, 'down'); }
+        var near = Math.abs(pcx - (t.x + t.w / 2)) < t.w / 2 + trig && player.y + player.h > t.top - 52 && player.y + player.h < t.top + 24;
+        if (near && !player.dead) { setTrapState(t, 'tell'); SFX.sproing(); if (t.type === 'rotbloom') SFX.humm(); }
+      } else if (t.state === 'tell') { t.t += dt; t.rise = Math.min(0.25, t.t / tellT * 0.25); if (t.t >= tellT) { setTrapState(t, 'up'); SFX.spikes(); } }
+      else if (t.state === 'up') { t.t += dt; t.rise = Math.min(1, t.rise + dt * 6); if (t.t >= upT) setTrapState(t, 'down'); }
       else if (t.state === 'down') { t.t += dt; t.rise = Math.max(0, t.rise - dt * 6); if (t.rise <= 0) { setTrapState(t, 'cool'); } }
       else if (t.state === 'cool') { t.t += dt; if (t.t >= 0.6) setTrapState(t, 'idle'); }
-      if (t.rise > 0.55 && !player.dead) {
-        if (overlap(player, { x: t.x + 4, y: t.top - 15, w: t.w - 8, h: 15 })) die('gummy-spikes');
-      }
+      spikeKillCheck(t, t.type === 'rotbloom' ? 'rotbloom' : 'gummy-spikes');
     } else if (t.type === 'gumball') {
+      if (t.bossMode) continue; // phase spawners are boss-driven
       if (!t.fired && pcx >= t.at) {
         t.fired = true; setTrapState(t, 'tell'); SFX.rumble();
         burst(t.x - 10, t.top - 4, ['#C9A86A', '#8A5A2B'], 6, 90); // pebbles first — the tell
       } else if (t.state === 'tell') {
         t.t += dt;
-        if (t.t >= 0.45) { setTrapState(t, 'done'); balls.push({ x: t.x, y: t.top - 48, w: 48, h: 48, vx: (t.dir || -1) * (t.speed || 200), vy: 0, rot: 0, passed: false }); SFX.rumble(); }
+        if (t.t >= 0.45) {
+          setTrapState(t, t.repeat ? 'cool' : 'done'); t.lastFired = levelTime;
+          spawnBall({ x: t.x, y: t.top - 48, w: 48, h: 48, vx: (t.dir || -1) * (t.speed || 200), vy: 0, rot: 0, passed: false, src: t });
+          SFX.rumble();
+        }
+      } else if (t.state === 'cool' && t.repeat) { // repeating lane (L28): re-arms while the player is in the lane
+        var hasBall = false;
+        for (var bi = 0; bi < balls.length; bi++) if (balls[bi].src === t) hasBall = true;
+        if (!hasBall && levelTime - t.lastFired > t.repeat && pcx >= t.at) { t.fired = false; setTrapState(t, 'idle'); }
       }
+    } else if (t.type === 'sweeper') { // T07 Lollipop Sweeper
+      if (!t.fired && pcx > t.x - 430 && Math.abs((player.y + player.h) - t.top) < 90) t.fired = true;
+      sweeperStep(t, dt, !!t.fired);
+    } else if (t.type === 'dripper') { // T08 Honey Dripper
+      dripperStep(t, dt, true);
+    } else if (t.type === 'sneeze') { // T09 Sneeze-Blossom: gust pushes, never kills
+      var periodSn = t.period || 3.6;
+      t.cyc += dt;
+      var phSn = t.cyc % periodSn;
+      if (phSn >= periodSn - 1.55 && phSn < periodSn - 0.95) {
+        if (t.state !== 'inhale') SFX.sniff();
+        t.state = 'inhale';
+      } else if (phSn >= periodSn - 0.95) {
+        if (t.state !== 'gust') SFX.achoo();
+        t.state = 'gust';
+        var feetSn = player.y + player.h;
+        if (!player.dead && feetSn > t.top - 190 && feetSn < t.top + 12) { // the gust fills the jump arc over the gap
+          var inZone = t.dir > 0 ? (pcx > t.x - 6 && pcx < t.x + (t.range || 300)) : (pcx < t.x + 6 && pcx > t.x - (t.range || 300));
+          if (inZone) { player.gustDir = t.dir; player.gustT = 0.12; }
+        }
+      } else t.state = 'idle';
+    } else if (t.type === 'spitter') { // T10 Seed Spitter
+      var periodSp = t.period || 2.8;
+      t.cyc += dt;
+      var phSp = t.cyc % periodSp, cycSp = Math.floor(t.cyc / periodSp);
+      if (phSp >= periodSp - 0.45) {
+        t.state = 'tell';
+        if (t.firedCycle !== cycSp) {
+          t.firedCycle = cycSp; SFX.ptooie();
+          spawnBall({ x: t.x + (t.dir || -1) * 26 - 11, y: t.top - (t.shotDy || 40), w: 22, h: 20, vx: (t.dir || -1) * 330, vy: 0, rot: 0, passed: false, shot: true, grav: 0 });
+        }
+      } else t.state = 'idle';
+    } else if (t.type === 'gatling') { // T21 Gatling Grove: three pods, counted-in volley
+      var periodG = t.period || 3.4;
+      t.cyc += dt;
+      var phG = t.cyc % periodG;
+      if (phG >= periodG - 1.5 && phG < periodG - 0.6) {
+        if (t.state !== 'tell') SFX.tik();
+        t.state = 'tell';
+      } else if (phG >= periodG - 0.6) {
+        t.state = 'fire';
+        var marks = [periodG - 0.6, periodG - 0.38, periodG - 0.16];
+        for (var mi = 0; mi < 3; mi++) {
+          if (phG >= marks[mi] && !(t.vol & (1 << mi))) {
+            t.vol |= (1 << mi); SFX.ptooie();
+            spawnBall({ x: t.x + (mi - 1) * 30 + (t.dir || -1) * 16 - 11, y: t.top - 40, w: 22, h: 20, vx: (t.dir || -1) * 330, vy: 0, rot: 0, passed: false, shot: true, grav: 0 });
+          }
+        }
+      } else { t.state = 'idle'; t.vol = 0; }
+    } else if (t.type === 'mine') { // T13 Pop-Mine
+      if (t.state === 'idle') {
+        if (!player.dead && Math.abs(pcx - t.x) < 62 && Math.abs((player.y + player.h) - t.top) < 46) { setTrapState(t, 'tell'); SFX.fizz(); }
+      } else if (t.state === 'tell') {
+        t.t += dt;
+        if (t.t >= 0.4) {
+          setTrapState(t, 'spent'); SFX.boom();
+          burst(t.x, t.top - 8, ['#7ED0A8', '#FF6FA5', '#FFF3B0'], 16, 190);
+          if (!player.dead && player.invulnT <= 0 && dist2(pcx, player.y + 19, t.x, t.top - 10) < 48 * 48) die('pop-mine');
+        }
+      } else if (t.state === 'spent') { t.t += dt; if (t.t >= 3.0) setTrapState(t, 'idle'); }
+    } else if (t.type === 'pendulum') { // T14 Candy-Cane Pendulum
+      var ang = 1.05 * Math.sin(6.283 * (levelTime + (t.off || 0)) / (t.period || 3.8));
+      t.headX = t.x + Math.sin(ang) * t.len; t.headY = t.y + Math.cos(ang) * t.len; t.ang = ang;
+      if (!player.dead && player.invulnT <= 0) {
+        if (circleBox(t.headX, t.headY, 20, player)) die('pendulum');
+        else if (circleBox(t.x + Math.sin(ang) * t.len * 0.55, t.y + Math.cos(ang) * t.len * 0.55, 11, player)) die('pendulum');
+      }
+    } else if (t.type === 'mire') { // T15 Honey Mire: slows (handled in stepPlayer), never kills
+      /* visual only */
+    } else if (t.type === 'jawbreaker') { // T17 Jawbreaker-on-a-Branch
+      if (t.state === 'idle') {
+        if (!player.dead && Math.abs(pcx - t.x) < 130 && Math.abs((player.y + player.h) - t.top) < 70) { setTrapState(t, 'tell'); SFX.crrrk(); }
+      } else if (t.state === 'tell') {
+        t.t += dt;
+        if (t.t >= 0.45) {
+          setTrapState(t, 'done'); SFX.crumble();
+          spawnBall({ x: t.x - 20, y: t.y, w: 40, h: 40, vx: 0, vy: 0, rot: 0, passed: false, jb: true, jbDir: t.dir || 1, jbSpeed: t.speed || 150, rollT: 0, settled: false });
+        }
+      }
+    } else if (t.type === 'fountain') { // T18 Fizz Fountain
+      if (t.bossSec !== undefined && t.bossSec !== null) continue;
+      fountainStep(t, dt, true);
+    } else if (t.type === 'bush') { // T19 Berry Bush: fixed arc of darts, dead-zone under the bush
+      var periodB = t.period || 3.4;
+      t.cyc += dt;
+      var phB = t.cyc % periodB, cycB2 = Math.floor(t.cyc / periodB);
+      if (phB >= periodB - 0.9 && phB < periodB - 0.45) {
+        if (t.state !== 'tell') SFX.bloop();
+        t.state = 'tell';
+      } else if (phB >= periodB - 0.45) {
+        t.state = 'fire';
+        if (t.firedCycle !== cycB2) {
+          t.firedCycle = cycB2; SFX.bloop();
+          spawnBall({ x: t.x + (t.dir || -1) * 30 - 8, y: t.top - 54, w: 16, h: 16, vx: (t.dir || -1) * 290, vy: -240, rot: 0, passed: false, dart: true, gravScale: 0.45 });
+        }
+      } else t.state = 'idle';
+    } else if (t.type === 'secret') { // hidden doorway (L27 wall / L43 over-door ledge)
+      if (!player.dead && overlap(player, { x: t.x, y: t.y, w: t.w, h: t.h })) { startSecret(t.id); return; }
     } else if (t.type === 'fakeDoor') {
       var nearF = Math.abs(pcx - (t.x + 23)) < 95 && Math.abs((player.y + player.h) - t.y) < 30;
       if (nearF && !t.tokIn) { t.tokIn = true; SFX.tok(); }
@@ -1035,48 +1634,130 @@ function updateBalls(dt){
   var solids = solidsList();
   for (var i = balls.length - 1; i >= 0; i--) {
     var b = balls[i];
-    b.vy = Math.min(b.vy + 3000 * dt, 1140);
-    b.x += b.vx * dt; b.y += b.vy * dt; b.rot += b.vx * dt / 24;
+    if (b.grav !== 0) b.vy = Math.min(b.vy + 3000 * (b.gravScale || 1) * dt, 1140);
+    b.x += b.vx * dt; b.y += b.vy * dt; b.rot += b.vx * dt / Math.max(8, b.w / 2);
+    var touched = false;
     for (var j = 0; j < solids.length; j++) {
       var s = solids[j];
       if (!overlap(b, s)) continue;
-      if (b.vy >= 0 && (b.y + b.h) - s.y < 26 + Math.max(0, b.vy * dt)) { b.y = s.y - b.h; b.vy = 0; }
+      touched = true;
+      if (b.shot || b.dart) break; // projectiles are stopped by cover
+      if (b.vy >= 0 && (b.y + b.h) - s.y < 26 + Math.max(0, b.vy * dt)) {
+        b.y = s.y - b.h;
+        if (b.jb && b.vy > 0 && !b.rolling && !b.settled) { b.rolling = true; b.vx = (b.jbDir || 1) * (b.jbSpeed || 150); } // jawbreaker lands, then rolls ONE way
+        b.vy = 0;
+      }
       else if (b.vy < 0 && (s.y + s.h) - b.y < 26) { b.y = s.y + s.h; b.vy = 0; }
     }
+    if ((b.shot || b.dart) && touched) { balls.splice(i, 1); continue; }
+    if (b.jb && b.rolling) { b.rollT += dt; if (b.rollT >= 1.6) { b.rolling = false; b.settled = true; b.vx = 0; } } // then it sits, harmless
     if (b.y > VH + 80 || b.x < -80 || b.x > L.width + 80) { balls.splice(i, 1); continue; }
-    if (!player.dead && player.invulnT <= 0) {
-      if (overlap(player, { x: b.x + 7, y: b.y + 7, w: 34, h: 34 })) { die('gumball'); return; }
-      if (!b.passed && Math.abs((player.x + 14) - (b.x + 24)) < 64 && Math.abs((player.y + 19) - (b.y + 24)) < 76) {
+    if (!player.dead && player.invulnT <= 0 && !b.settled) {
+      var inset = b.w * 0.15;
+      if (overlap(player, { x: b.x + inset, y: b.y + inset, w: b.w - inset * 2, h: b.h - inset * 2 })) { die(b.dart ? 'berry-dart' : (b.jb ? 'jawbreaker' : (b.shot ? 'seed-shot' : 'gumball'))); return; }
+      if (!b.passed && Math.abs((player.x + 14) - (b.x + b.w / 2)) < 64 && Math.abs((player.y + 19) - (b.y + b.h / 2)) < 76) {
         b.passed = true; slowmoT = Math.max(slowmoT, 0.22); // near-miss slow-mo
       }
     }
   }
 }
+function bossPhaseAt(t){
+  var B = L.boss; if (!B || !B.phases) return 1;
+  var acc = 0;
+  for (var i = 0; i < B.phases.length; i++) { acc += B.phases[i].dur; if (t < acc) return i + 1; }
+  return B.phases.length;
+}
+function bossPhaseStart(ph){
+  var acc = 0, B = L.boss;
+  for (var i = 0; i < ph - 1; i++) acc += B.phases[i].dur;
+  return acc;
+}
+function trapBossActive(t){
+  if (t.boss !== undefined && t.boss !== null) return bossState.sec === t.boss;
+  if (t.bossSec !== undefined && t.bossSec !== null) return bossState.sec === t.bossSec;
+  if (t.bphase !== undefined && t.bphase !== null) return bossState.phase === t.bphase;
+  return false;
+}
 function updateBoss(dt){
   if (!L.boss || !bossState || bossState.open) return;
+  var B = L.boss;
   if (!player.dead) bossState.t += dt;
-  bossState.waveT += dt;
-  if (bossState.waveT >= 2.2) {
-    bossState.waveT = 0;
-    bossState.wave = (bossState.wave + 1);
-    var sec = bossState.seq[bossState.wave % bossState.seq.length];
-    for (var i = 0; i < L.traps.length; i++) {
-      var t = L.traps[i];
-      if (t.type !== 'spikes' || t.boss === undefined || t.boss === null) continue;
-      if (t.boss === sec) { setTrapState(t, 'tell'); SFX.sproing(); }
-      else if (t.state === 'up' || t.state === 'tell') setTrapState(t, 'down');
+  if (B.phases) { // L50: phases advance on survival time only
+    var ph = bossPhaseAt(bossState.t);
+    if (ph !== bossState.phase) {
+      bossState.phase = ph;
+      bossState.phaseName = B.phases[ph - 1].name;
+      bossResumeT = bossPhaseStart(ph); // the between-phase checkpoint
+      toast('⚔ PHASE ' + ph + ': ' + bossState.phaseName);
+      SFX.chime();
+      for (var pi = 0; pi < L.traps.length; pi++) { var pt = L.traps[pi]; if (pt.bphase) { pt.state = 'idle'; pt.t = 0; pt.cyc = pt.off || 0; pt.onT = 0; pt.rise = 0; pt.firedCycle = -99; pt._spawnedFor = -1; } }
     }
   }
-  for (var j = 0; j < L.traps.length; j++) {
-    var tr = L.traps[j];
-    if (tr.type !== 'spikes' || tr.boss === undefined || tr.boss === null) continue;
-    if (tr.state === 'tell') { tr.t += dt; tr.rise = Math.min(0.25, tr.t / 0.4 * 0.25); if (tr.t >= 0.4) { setTrapState(tr, 'up'); SFX.spikes(); } }
-    else if (tr.state === 'up') { tr.t += dt; tr.rise = Math.min(1, tr.rise + dt * 6); if (tr.t >= 1.3) setTrapState(tr, 'down'); }
-    else if (tr.state === 'down') { tr.t += dt; tr.rise = Math.max(0, tr.rise - dt * 6); if (tr.rise <= 0) setTrapState(tr, 'idle'); }
-    if (tr.rise > 0.55 && !player.dead && overlap(player, { x: tr.x + 4, y: tr.top - 15, w: tr.w - 8, h: 15 })) die('gauntlet-spikes');
+  if (B.checkpointAt && !bossState.cpHit && bossState.t >= B.checkpointAt) { // L30/L40 mid-gauntlet checkpoint
+    bossState.cpHit = true; bossResumeT = B.checkpointAt;
+    toast('CHECKPOINT! 🚩'); SFX.ding();
+  }
+  if (B.seq) {
+    bossState.waveT += dt;
+    var every = B.waveEvery || 2.2;
+    if (bossState.waveT >= every || bossState.sec < 0) {
+      bossState.waveT = 0; bossState.wave++;
+      bossState.sec = bossState.seq[bossState.wave % bossState.seq.length];
+    }
+  } else if (B.checkpointAt) {
+    bossState.sec = bossState.t >= B.checkpointAt ? 1 : 0;
+  } else if (B.phases) {
+    bossState.sec = bossState.phase - 1;
+  }
+  for (var i = 0; i < L.traps.length; i++) {
+    var t = L.traps[i];
+    var gated = (t.boss !== undefined && t.boss !== null) || (t.bossSec !== undefined && t.bossSec !== null) || (t.bphase !== undefined && t.bphase !== null);
+    if (!gated) continue;
+    var active = trapBossActive(t);
+    if (t.type === 'spikes' || t.type === 'rotbloom') {
+      var act = active;
+      if (t.bphase && t.type === 'spikes') act = active && (((levelTime + (t.off || 0)) % 3.3) < 2.0); // P1 patches cycle, staggered
+      if (t.bphase && t.type === 'rotbloom') { // P3 doorstep bloom arms on proximity, like the field version
+        var pcxB = player.x + 14;
+        act = active && Math.abs(pcxB - (t.x + t.w / 2)) < t.w / 2 + 90 && player.y + player.h > t.top - 52 && player.y + player.h < t.top + 24;
+      }
+      bossSpikeStep(t, dt, act, t.type === 'rotbloom' ? 0.5 : 0.4, 1.3, t.type === 'rotbloom' ? 'rotbloom' : 'gauntlet-spikes');
+    }
+    else if (t.type === 'sweeper') sweeperStep(t, dt, active);
+    else if (t.type === 'dripper') dripperStep(t, dt, active);
+    else if (t.type === 'fountain') fountainStep(t, dt, active);
+    else if (t.type === 'gumball' && t.bossMode) { // L50 P1 spawners
+      if (active) {
+        var periodGb = t.period || 4.2;
+        t.cyc += dt;
+        var phGb = t.cyc % periodGb, cycGb = Math.floor(t.cyc / periodGb);
+        if (phGb >= periodGb - 0.45 && t.firedCycle !== cycGb) { t.firedCycle = cycGb; SFX.rumble(); burst(t.x - (t.dir || -1) * 10, t.top - 4, ['#C9A86A', '#8A5A2B'], 5, 80); }
+        if (phGb < 0.2 && t.firedCycle === cycGb - 1 && (t._spawnedFor || -1) !== cycGb) {
+          t._spawnedFor = cycGb;
+          spawnBall({ x: t.x, y: t.top - 48, w: 48, h: 48, vx: (t.dir || -1) * (t.speed || 200), vy: 0, rot: 0, passed: false, src: t });
+          SFX.rumble();
+        }
+      }
+    }
+    else if (t.type === 'fakeDoor') { // L50 P3 lying door
+      if (active && !player.dead) {
+        var pcxF = player.x + 14;
+        var nearFb = Math.abs(pcxF - (t.x + 23)) < 95 && Math.abs((player.y + player.h) - t.y) < 30;
+        if (nearFb && !t.tokIn) { t.tokIn = true; SFX.tok(); }
+        if (!nearFb && Math.abs(pcxF - (t.x + 23)) > 150) t.tokIn = false;
+        if (overlap(player, { x: t.x + 4, y: t.y - 60, w: 38, h: 60 })) { burst(t.x + 20, t.y - 26, ['#6FCE3A', '#FFFFFF'], 14, 170); toast('That door was lying!'); die('lying-door'); }
+      }
+    }
   }
   if (bossState.t >= bossState.dur) {
     bossState.open = true;
+    for (var oi = 0; oi < L.traps.length; oi++) { // the gauntlet powers down: every boss trap goes inert
+      var ot = L.traps[oi];
+      if ((ot.boss !== undefined && ot.boss !== null) || (ot.bossSec !== undefined && ot.bossSec !== null) || (ot.bphase !== undefined && ot.bphase !== null)) {
+        ot.state = 'idle'; ot.t = 0; ot.rise = 0;
+        if (ot.type === 'sweeper') { ot.armA = 3.14; ot.onT = 0; }
+      }
+    }
     SFX.chime();
     toast('THE ARCH OPENS!');
     burst(L.door.x + 20, L.door.y - 40, ['#F5B942', '#FFF3B0'], 24, 200);
@@ -1084,22 +1765,38 @@ function updateBoss(dt){
 }
 
 /* ---------------- player physics (JT core, ported) ---------------- */
+function playerInMire(){
+  if (!player.grounded) return false;
+  var feet = player.y + player.h, cx = player.x + 14;
+  for (var i = 0; i < L.traps.length; i++) {
+    var t = L.traps[i];
+    if (t.type === 'mire' && Math.abs(feet - t.top) < 8 && cx > t.x - 6 && cx < t.x + t.w + 6) return true;
+  }
+  return false;
+}
 function stepPlayer(dt){
   var dir = (input.right ? 1 : 0) - (input.left ? 1 : 0);
-  var MAXS = 266;
+  var inMireNow = playerInMire();
+  var gusting = player.gustT > 0;
+  var MAXS = inMireNow ? 120 : (gusting ? 345 : 266); // T15 mire: 45% speed; T09 gust: blown past cap
   if (dir !== 0) {
     player.vx += dir * (player.grounded ? 2600 : 1900) * dt;
+    if (gusting) player.vx += player.gustDir * 1500 * dt;
     player.vx = clamp(player.vx, -MAXS, MAXS);
     player.face = dir;
+  } else if (gusting) {
+    player.vx += player.gustDir * 1500 * dt;
+    player.vx = clamp(player.vx, -345, 345);
   } else if (player.grounded) {
     var f = 2800 * dt; player.vx = Math.abs(player.vx) <= f ? 0 : player.vx - Math.sign(player.vx) * f;
   } else { player.vx *= Math.pow(0.4, dt); }
+  if (player.gustT > 0) player.gustT -= dt;
 
   if (input.jumpPressed) { player.buffer = 0.1; input.jumpPressed = false; }
   else if (player.buffer > 0) player.buffer -= dt;
   if (player.grounded) player.coyote = 0.10; else if (player.coyote > 0) player.coyote -= dt;
   if (player.buffer > 0 && (player.grounded || player.coyote > 0)) {
-    player.vy = -762; player.grounded = false; player.coyote = 0; player.buffer = 0; player.stretch = 0.09; SFX.jump();
+    player.vy = inMireNow ? -648 : -762; player.grounded = false; player.coyote = 0; player.buffer = 0; player.stretch = 0.09; SFX.jump();
     burst(player.x + 14, player.y + player.h, ['#FFF3B0', '#FFFFFF'], 4, 60);
   }
   if (player.prevJump && !input.jump && player.vy < 0) player.vy *= 0.45; // variable jump height
@@ -1114,6 +1811,8 @@ function stepPlayer(dt){
   for (i = 0; i < solids.length; i++) {
     s = solids[i];
     if (!overlap(player, s)) continue;
+    var penY = (player.y + player.h) - s.y;
+    if (penY > 0 && penY < 2) continue; // standing graze: a sub-2px float overlap with the platform you stand on is not a wall — never side-eject the player for it
     if (player.vx > 0) player.x = s.x - player.w;
     else if (player.vx < 0) player.x = s.x + s.w;
   }
@@ -1138,21 +1837,36 @@ function stepPlayer(dt){
     if (c.got) continue;
     if (dist2(player.x + 14, player.y + 19, c.x, c.y) < 28 * 28) collectCoin(c);
   }
+  if (L.checkpoint && !runCpTaken) { // candy-flag checkpoint (per-run)
+    var cp = L.checkpoint;
+    if (overlap(player, { x: cp.x - 8, y: cp.y - 84, w: 48, h: 84 })) {
+      runCpTaken = true;
+      respawnPt = { x: cp.x - 14, y: cp.y - player.h };
+      SFX.ding();
+      toast('CHECKPOINT! 🚩');
+      burst(cp.x, cp.y - 70, ['#FF6FA5', '#FFF3B0', '#FFFFFF'], 12, 130);
+    }
+  }
   var ds = L.door;
   if (overlap(player, { x: ds.x + 2, y: ds.y - 120, w: 42, h: 120 })) { // tall trigger: dropping onto the arch counts too
-    if (L.boss && !(bossState && bossState.open)) {
+    if (L.isSecret) { winSecret(); }
+    else if (L.boss && !(bossState && bossState.open)) {
       if (levelTime - lastSafeToast > 2.5) { lastSafeToast = levelTime; toast('Survive — the arch is sealed!'); SFX.tok(); }
     } else { winLevel(); }
     return;
   }
-  if (player.y > VH + 80) die('pit');
+  if (player.y > VH + 80) {
+    if (L.secretFall && (player.x + 14) >= L.secretFall.x1 && (player.x + 14) <= L.secretFall.x2) { startSecret(L.secretFall.id); return; }
+    die('pit');
+  }
 }
 function collectCoin(c){
   c.got = true;
   if (!c.banked) {
     c.banked = true;
-    if (!save.coinMap[cur]) save.coinMap[cur] = [];
-    save.coinMap[cur][c.i] = true;
+    var key = coinKey();
+    if (!save.coinMap[key]) save.coinMap[key] = [];
+    save.coinMap[key][c.i] = true;
     save.coins++; runCoins++; persist();
   }
   SFX.coin();
@@ -1267,7 +1981,8 @@ function drawBG(){
 }
 function drawPlatform(p){
   var x = p.x, y = p.y, w = p.w, h = p.h;
-  if (p.state === 'gone') return;
+  if (p.state === 'gone' || p.state === 'off') return;
+  if (p.bphase && (!bossState || bossState.phase !== p.bphase)) return; // L50 discs exist only in their phase
   ctx.save();
   if ((p.kind === 'sham' || p.kind === 'cube') && p.state === 'crack') ctx.translate(Math.sin(animT * 55) * 1.3, 0);
   if (p.kind === 'ground') {
@@ -1316,6 +2031,67 @@ function drawPlatform(p){
       ctx.moveTo(x + w - 10, y + 3); ctx.lineTo(x + w - 10 - 13 * a, y + h * 0.6);
       ctx.stroke();
     }
+  } else if (p.kind === 'hollow') {
+    // T11 grass lid: yellowish, tilted tufts are the baked-in tell
+    ctx.fillStyle = '#8A5A2B'; rr2(x, y + 4, w, h, 3); ctx.fill();
+    ctx.fillStyle = '#CDE86A'; rr2(x, y, w, 9, 4); ctx.fill();
+    ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.2; rr2(x, y, w, h, 3); ctx.stroke();
+    ctx.strokeStyle = '#A8B83A'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (var gi = 0; gi < 4; gi++) { var gx = x + 12 + gi * (w - 24) / 3; ctx.moveTo(gx, y + 1); ctx.lineTo(gx + 3, y - 5); }
+    ctx.stroke();
+    if (p.state === 'crack') { ctx.strokeStyle = '#33302E'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x + w * 0.3, y + 1); ctx.lineTo(x + w * 0.45, y + 7); ctx.lineTo(x + w * 0.6, y + 2); ctx.stroke(); }
+  } else if (p.kind === 'taffy' || p.kind === 'taffyB') {
+    // T12 taffy: thins and pales as it stretches; taffyB flickers before its blink
+    var st = p.kind === 'taffy' ? (p.stretch || 0) : 0;
+    ctx.save();
+    if (p.kind === 'taffyB' && p.state === 'tell') ctx.globalAlpha = 0.45 + 0.4 * Math.abs(Math.sin(animT * 18));
+    var th = h * (1 - 0.45 * st), sag = st * 3;
+    ctx.fillStyle = st > 0.55 ? '#FFD3E4' : '#FF9DBD';
+    rr2(x, y + sag, w, th, 6); ctx.fill();
+    ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.6; rr2(x, y + sag, w, th, 6); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,.65)'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (var ti = 1; ti < 4; ti++) { ctx.moveTo(x + ti * w / 4 - 6, y + sag + th - 3); ctx.lineTo(x + ti * w / 4 + 6, y + sag + 3); }
+    ctx.stroke();
+    ctx.restore();
+  } else if (p.kind === 'cloud') {
+    // T20 cloud perch: frayed edges when it has sunk deep
+    var fray = (p.sink || 0) > 34;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.ellipse(x + w / 2, y + 9, w / 2, 10, 0, 0, 6.29);
+    ctx.ellipse(x + w * 0.24, y + 6, fray ? 12 : 17, fray ? 6 : 9, 0, 0, 6.29);
+    ctx.ellipse(x + w * 0.76, y + 6, fray ? 12 : 17, fray ? 6 : 9, 0, 0, 6.29);
+    ctx.ellipse(x + w / 2, y + 3, 22, 10, 0, 0, 6.29);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(51,48,46,.55)'; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.ellipse(x + w / 2, y + 9, w / 2, 10, 0, 0.15, 3.0); ctx.stroke();
+  } else if (p.kind === 'vine') {
+    // T16 licorice vine platform + its anchor vine
+    var anx = p.x0 + p.w / 2, any = p.y - 92;
+    ctx.strokeStyle = '#5B8C3E'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(anx, any); ctx.quadraticCurveTo((anx + x + w / 2) / 2 + 8, (any + y) / 2, x + w / 2, y + 2); ctx.stroke();
+    ctx.fillStyle = '#5B8C3E'; ctx.beginPath(); ctx.arc(anx, any, 6, 0, 6.29); ctx.fill();
+    ctx.save();
+    if (p.state === 'stretch') ctx.translate(Math.sin(animT * 40) * 1.4, 0);
+    ctx.fillStyle = '#4A2C6A'; rr2(x, y, w, h, 7); ctx.fill();
+    ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.6; rr2(x, y, w, h, 7); ctx.stroke();
+    ctx.strokeStyle = '#B388FF'; ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    for (var vi = 0; vi < 4; vi++) { ctx.moveTo(x + 8 + vi * (w - 16) / 3, y + h - 3); ctx.lineTo(x + 16 + vi * (w - 16) / 3, y + 3); }
+    ctx.stroke();
+    ctx.restore();
+  } else if (p.kind === 'fakewall') {
+    // L27: a wall that is not — one shade off, with a hairline crack (the tell)
+    ctx.fillStyle = '#C99B62'; rr2(x, y, w, h, 3); ctx.fill();
+    ctx.strokeStyle = '#8A5A2B'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x, y + h / 3); ctx.lineTo(x + w, y + h / 3); ctx.moveTo(x, y + 2 * h / 3); ctx.lineTo(x + w, y + 2 * h / 3);
+    ctx.moveTo(x + w / 2, y); ctx.lineTo(x + w / 2, y + h / 3); ctx.moveTo(x + w / 4, y + h / 3); ctx.lineTo(x + w / 4, y + 2 * h / 3); ctx.moveTo(x + 3 * w / 4, y + 2 * h / 3); ctx.lineTo(x + 3 * w / 4, y + h);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(51,48,46,.65)'; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.moveTo(x + w * 0.62, y + 6); ctx.lineTo(x + w * 0.5, y + h * 0.4); ctx.lineTo(x + w * 0.66, y + h * 0.72); ctx.stroke();
   }
   ctx.restore();
 }
@@ -1344,6 +2120,244 @@ function drawSpikePatch(t){
       ctx.beginPath(); ctx.ellipse(bx, top - 2, 4, 2.6, 0, 0, 6.29); ctx.fill();
     }
   }
+  ctx.restore();
+}
+/* -------- Step 6A trap art (Sour Rot green #6FCE3A is the ONLY danger rim) -------- */
+function drawRotbloom(t){
+  var x = t.x, top = t.top, w = t.w;
+  ctx.save();
+  if (t.state === 'tell') { ctx.translate(Math.sin(animT * 30) * 1.2, 0); ctx.shadowColor = '#6FCE3A'; ctx.shadowBlur = 12; }
+  ctx.fillStyle = '#FF8FB8';
+  for (var i = 0; i < 5; i++) { var px = x + (i + 0.5) * (w / 5); ctx.beginPath(); ctx.ellipse(px, top - 2, 8, 4.5, 0, 0, 6.29); ctx.fill(); }
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#7ED0A8'; ctx.beginPath(); ctx.arc(x + w / 2, top - 3, 5, 0, 6.29); ctx.fill();
+  if (t.rise > 0.02) {
+    var sh = 27 * t.rise, n = Math.max(3, Math.round(w / 13));
+    for (var j = 0; j < n; j++) {
+      var sx = x + (j + 0.5) * (w / n);
+      ctx.fillStyle = '#FF8FB8';
+      ctx.beginPath(); ctx.moveTo(sx - 6, top); ctx.lineTo(sx, top - sh); ctx.lineTo(sx + 6, top); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#6FCE3A'; ctx.lineWidth = 2; ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+function drawSweeper(t){
+  var hs = sweeperHeads(t), head = hs[2];
+  ctx.save();
+  ctx.strokeStyle = '#C07F3E'; ctx.lineWidth = 8;
+  ctx.beginPath(); ctx.moveTo(t.x, t.top); ctx.lineTo(t.x, t.y); ctx.stroke();
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2; ctx.strokeRect(t.x - 5, t.y - 4, 10, (t.top - t.y) + 4);
+  if (t.state === 'tell') ctx.translate(Math.sin(animT * 46) * 1.6, 0);
+  ctx.strokeStyle = '#FFF7EE'; ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.moveTo(t.x, t.y); ctx.lineTo(head.x, head.y); ctx.stroke();
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#FF8FB8'; ctx.beginPath(); ctx.arc(head.x, head.y, 20, 0, 6.29); ctx.fill();
+  ctx.strokeStyle = t.state === 'on' ? '#6FCE3A' : '#33302E'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(head.x, head.y, 11, animT * 2, animT * 2 + 3.6); ctx.stroke();
+  ctx.fillStyle = '#FFF7EE'; ctx.beginPath(); ctx.arc(t.x, t.y, 8, 0, 6.29); ctx.fill();
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.4; ctx.stroke();
+  ctx.restore();
+}
+function drawDripper(t){
+  ctx.save();
+  ctx.strokeStyle = '#5B8C3E'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(t.x, t.y - 26); ctx.quadraticCurveTo(t.x + 4, t.y - 10, t.x, t.y + 2); ctx.stroke();
+  ctx.fillStyle = '#FFB7D1';
+  for (var i = 0; i < 5; i++) { var a = i / 5 * 6.283; ctx.beginPath(); ctx.ellipse(t.x + Math.cos(a) * 9, t.y + Math.sin(a) * 7, 7, 5, a, 0, 6.29); ctx.fill(); }
+  ctx.fillStyle = '#F5B942'; ctx.beginPath(); ctx.arc(t.x, t.y, 5.5, 0, 6.29); ctx.fill();
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 1.6; ctx.stroke();
+  if (t.state === 'tell') {
+    ctx.fillStyle = 'rgba(51,48,46,.28)';
+    ctx.beginPath(); ctx.ellipse(t.x, t.top - 2, 20 + Math.sin(animT * 10) * 3, 4.5, 0, 0, 6.29); ctx.fill(); // the shadow lands first
+    ctx.fillStyle = '#E8A33D'; ctx.beginPath(); ctx.ellipse(t.x, t.y + 15, 5, 7 + Math.sin(animT * 12) * 1.5, 0, 0, 6.29); ctx.fill();
+  } else if (t.state === 'fall') {
+    ctx.fillStyle = 'rgba(51,48,46,.22)';
+    ctx.beginPath(); ctx.ellipse(t.x, t.top - 2, 21, 4.5, 0, 0, 6.29); ctx.fill();
+    ctx.fillStyle = '#E8A33D'; ctx.beginPath(); ctx.ellipse(t.x, t.dropY, 6, 9, 0, 0, 6.29); ctx.fill();
+    ctx.strokeStyle = '#B97A1E'; ctx.lineWidth = 1.6; ctx.stroke();
+  } else if (t.state === 'splat') {
+    ctx.fillStyle = '#E8A33D'; ctx.beginPath(); ctx.ellipse(t.x, t.top - 2, 22, 4.5, 0, 0, 6.29); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawSneeze(t){
+  ctx.save();
+  ctx.strokeStyle = '#5B8C3E'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.moveTo(t.x, t.top); ctx.quadraticCurveTo(t.x - 4, t.top - 16, t.x, t.top - 26); ctx.stroke();
+  var sc = t.state === 'inhale' ? 0.84 : 1;
+  ctx.translate(t.x, t.top - 30); ctx.scale(sc, sc);
+  ctx.fillStyle = '#FFD3E4';
+  for (var i = 0; i < 6; i++) { var a = i / 6 * 6.283; ctx.beginPath(); ctx.ellipse(Math.cos(a) * 11, Math.sin(a) * 9, 8, 5.5, a, 0, 6.29); ctx.fill(); }
+  ctx.fillStyle = '#FFF3B0'; ctx.beginPath(); ctx.arc(0, 0, 6.5, 0, 6.29); ctx.fill();
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 1.6; ctx.stroke();
+  ctx.restore();
+  if (t.state === 'gust') {
+    ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 3;
+    for (var g = 0; g < 3; g++) {
+      var gy = t.top - 14 - g * 15, off = (animT * 320 + g * 60) % 90;
+      ctx.beginPath(); ctx.moveTo(t.x + t.dir * (16 + off), gy); ctx.lineTo(t.x + t.dir * (58 + off), gy); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+function drawSpitter(t){
+  ctx.save();
+  ctx.translate(t.x, t.top - 14);
+  var puff = t.state === 'tell' ? 1.22 : 1;
+  ctx.scale(puff, puff);
+  ctx.fillStyle = '#7ED0A8'; ctx.beginPath(); ctx.arc(0, 0, 15, 0, 6.29); ctx.fill();
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.6; ctx.stroke();
+  ctx.fillStyle = '#FF8FB8'; ctx.beginPath(); ctx.arc(-5, -4, 4.5, 0, 6.29); ctx.arc(5, -4, 4.5, 0, 6.29); ctx.fill();
+  ctx.fillStyle = '#5B8C3E'; ctx.fillRect(t.dir > 0 ? 10 : -22, -5, 12, 10);
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2; ctx.strokeRect(t.dir > 0 ? 10 : -22, -5, 12, 10);
+  ctx.restore();
+}
+function drawGatling(t){
+  for (var i = 0; i < 3; i++) {
+    var pod = { x: t.x + (i - 1) * 30, top: t.top, dir: t.dir, state: 'idle' };
+    if (t.state === 'tell') {
+      var periodG = t.period || 3.4, phG = t.cyc % periodG;
+      var local = (phG - (periodG - 1.5)) / 0.9; // 0..1 across the count-in
+      if (local > i / 3 && local < (i + 1) / 3 + 0.2) pod.state = 'tell';
+    }
+    drawSpitter(pod);
+  }
+}
+function drawMine(t){
+  ctx.save();
+  ctx.translate(t.x, t.top);
+  if (t.state === 'tell') {
+    ctx.translate(Math.sin(animT * 42) * 1.5, 0);
+    ctx.strokeStyle = '#E04E3D'; ctx.lineWidth = 2.4; ctx.setLineDash([6, 5]);
+    ctx.beginPath(); ctx.arc(0, -2, 48, 0, 6.29); ctx.stroke(); ctx.setLineDash([]); // the visible blast ring comes first
+  }
+  if (t.state === 'spent') ctx.globalAlpha = 0.45;
+  ctx.fillStyle = '#5B8C3E';
+  ctx.beginPath(); ctx.ellipse(-9, -3, 9, 4.5, -0.5, 0, 6.29); ctx.ellipse(9, -3, 9, 4.5, 0.5, 0, 6.29); ctx.ellipse(0, -6, 10, 5, 0, 0, 6.29); ctx.fill();
+  ctx.fillStyle = t.state === 'tell' ? '#FF6FA5' : '#7ED0A8';
+  ctx.beginPath(); ctx.arc(0, -8, t.state === 'tell' ? 7.5 : 6, 0, 6.29); ctx.fill();
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 1.8; ctx.stroke();
+  ctx.restore();
+}
+function drawPendulum(t){
+  if (t.headX === undefined) return;
+  ctx.save();
+  ctx.strokeStyle = '#5B8C3E'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(t.x, t.y); ctx.lineTo(t.headX, t.headY); ctx.stroke();
+  ctx.fillStyle = '#8A5A2B'; ctx.beginPath(); ctx.arc(t.x, t.y, 6, 0, 6.29); ctx.fill();
+  ctx.translate(t.headX, t.headY);
+  ctx.fillStyle = '#FF5F7A'; ctx.beginPath(); ctx.arc(0, 0, 15, 0, 6.29); ctx.fill();
+  ctx.strokeStyle = '#6FCE3A'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.strokeStyle = '#FFF7EE'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.arc(5, -8, 8, -0.6, 2.4); ctx.stroke();
+  ctx.restore();
+}
+function drawMire(t){
+  ctx.save();
+  ctx.fillStyle = '#E8A33D'; rr2(t.x, t.top - 4, t.w, 10, 5); ctx.fill();
+  ctx.fillStyle = 'rgba(255,220,130,.75)'; rr2(t.x + 6, t.top - 3, t.w - 12, 4, 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.5)';
+  ctx.beginPath(); ctx.arc(t.x + 30 + Math.sin(animT * 2 + t.x) * 8, t.top, 3, 0, 6.29); ctx.arc(t.x + t.w - 40, t.top + 1, 2.4, 0, 6.29); ctx.fill();
+  ctx.restore();
+}
+function drawFountain(t){
+  ctx.save();
+  ctx.fillStyle = '#C98A44'; ctx.beginPath(); ctx.ellipse(t.x, t.top - 2, 20, 7, 0, 0, 6.29); ctx.fill();
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2; ctx.stroke();
+  if (t.state === 'tell') {
+    ctx.fillStyle = 'rgba(200,240,255,.9)';
+    for (var i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(t.x - 9 + i * 6, t.top - 12 - Math.abs(Math.sin(animT * 9 + i * 1.7)) * 15, 3, 0, 6.29); ctx.fill(); }
+  } else if (t.state === 'erupt') {
+    var hh = (t.h || 150) * (0.92 + Math.sin(animT * 22) * 0.05);
+    ctx.fillStyle = 'rgba(126,208,255,.75)'; rr2(t.x - 11, t.top - hh, 22, hh, 8); ctx.fill();
+    ctx.strokeStyle = '#4FA8D8'; ctx.lineWidth = 2; rr2(t.x - 11, t.top - hh, 22, hh, 8); ctx.stroke();
+    ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(t.x - 6, t.top - hh - 2, 5, 0, 6.29); ctx.arc(t.x + 5, t.top - hh - 4, 6, 0, 6.29); ctx.arc(t.x, t.top - hh + 2, 5, 0, 6.29); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawBush(t){
+  ctx.save();
+  ctx.translate(t.x, t.top);
+  ctx.fillStyle = '#3E7A34';
+  ctx.beginPath(); ctx.arc(-14, -10, 15, 0, 6.29); ctx.arc(0, -16, 18, 0, 6.29); ctx.arc(14, -10, 15, 0, 6.29); ctx.fill();
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.2; ctx.stroke();
+  var swell = t.state === 'tell' ? 1.45 : 1;
+  if (t.state === 'tell') { ctx.shadowColor = '#6FCE3A'; ctx.shadowBlur = 10; }
+  ctx.fillStyle = '#B03060';
+  var bp = [[-12, -18], [2, -24], [13, -14], [-3, -10]];
+  for (var i = 0; i < bp.length; i++) { ctx.beginPath(); ctx.arc(bp[i][0], bp[i][1], 4.2 * swell, 0, 6.29); ctx.fill(); }
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+function drawJawbreakerTrap(t){
+  if (t.state === 'done') return;
+  ctx.save();
+  ctx.strokeStyle = '#8A5A2B'; ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.moveTo(t.x - 78, t.y - 14); ctx.quadraticCurveTo(t.x, t.y - 26, t.x + 34, t.y - 10); ctx.stroke();
+  ctx.strokeStyle = '#5B8C3E'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(t.x + 18, t.y - 12); ctx.lineTo(t.x + 20, t.y + 2); ctx.stroke();
+  if (t.state === 'tell') ctx.translate(Math.sin(animT * 44) * 2, 0);
+  ctx.translate(t.x + 20, t.y + 20);
+  ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(0, 0, 19, 0, 6.29); ctx.fill();
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.6; ctx.stroke();
+  ctx.strokeStyle = '#FF5F7A'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.arc(0, 0, 12, 0.5, 2.6); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, 6, 3.4, 5.6); ctx.stroke();
+  ctx.restore();
+}
+function drawSecretZone(t){
+  ctx.save();
+  ctx.globalAlpha = 0.55 + Math.sin(animT * 3.4) * 0.25;
+  ctx.fillStyle = '#B388FF';
+  var pts = [[t.x + 8, t.y + 12], [t.x + t.w - 10, t.y + 30], [t.x + t.w / 2, t.y + t.h - 14]];
+  for (var i = 0; i < 3; i++) {
+    var px = pts[i][0], py = pts[i][1] + Math.sin(animT * 2.4 + i * 2) * 3;
+    ctx.beginPath(); ctx.moveTo(px, py - 6); ctx.lineTo(px + 2, py - 2); ctx.lineTo(px + 6, py); ctx.lineTo(px + 2, py + 2); ctx.lineTo(px, py + 6); ctx.lineTo(px - 2, py + 2); ctx.lineTo(px - 6, py); ctx.lineTo(px - 2, py - 2); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawTrap(t){
+  if (t.bphase && (!bossState || bossState.phase !== t.bphase)) return; // phase traps exist only in their phase
+  switch (t.type) {
+    case 'spikes': drawSpikePatch(t); break;
+    case 'rotbloom': drawRotbloom(t); break;
+    case 'fakeDoor': drawDoorShape(t.x, t.y, { fake: true }); break;
+    case 'sweeper': drawSweeper(t); break;
+    case 'dripper': drawDripper(t); break;
+    case 'sneeze': drawSneeze(t); break;
+    case 'spitter': drawSpitter(t); break;
+    case 'gatling': drawGatling(t); break;
+    case 'mine': drawMine(t); break;
+    case 'pendulum': drawPendulum(t); break;
+    case 'fountain': drawFountain(t); break;
+    case 'bush': drawBush(t); break;
+    case 'jawbreaker': drawJawbreakerTrap(t); break;
+    case 'secret': drawSecretZone(t); break;
+  }
+}
+function drawCheckpointFlag(){
+  var cp = L.checkpoint; if (!cp) return;
+  ctx.save();
+  ctx.strokeStyle = '#8A5A2B'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(cp.x, cp.y); ctx.lineTo(cp.x, cp.y - 84); ctx.stroke();
+  ctx.fillStyle = '#F5B942'; ctx.beginPath(); ctx.arc(cp.x, cp.y - 86, 4.5, 0, 6.29); ctx.fill();
+  ctx.fillStyle = runCpTaken ? '#FF6FA5' : '#B9B3AE';
+  ctx.beginPath(); ctx.moveTo(cp.x, cp.y - 84); ctx.lineTo(cp.x + 30, cp.y - 74); ctx.lineTo(cp.x, cp.y - 64); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = '#33302E'; ctx.lineWidth = 1.8; ctx.stroke();
+  if (runCpTaken) { ctx.fillStyle = '#FFF'; ctx.font = '900 13px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('✓', cp.x + 11, cp.y - 69); }
+  ctx.restore();
+}
+function drawSign(){
+  var sg = L.sign; if (!sg) return;
+  ctx.save();
+  ctx.fillStyle = '#8A5A2B'; ctx.fillRect(sg.x - 3, 462, 6, 38);
+  var tw = sg.text.length * 6.6 + 18;
+  ctx.fillStyle = '#FFE3B3'; rr2(sg.x - tw / 2, 424, tw, 34, 6); ctx.fill();
+  ctx.strokeStyle = '#C98A44'; ctx.lineWidth = 2.4; rr2(sg.x - tw / 2, 424, tw, 34, 6); ctx.stroke();
+  ctx.fillStyle = '#5B3A14'; ctx.font = '700 11.5px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(sg.text, sg.x, 445);
   ctx.restore();
 }
 function drawDoorShape(x, y, opts){
@@ -1378,7 +2392,7 @@ function drawDoorShape(x, y, opts){
 function hazardNear(){
   if (!L || !player) return false;
   var pcx = player.x + 14, i, t;
-  for (i = 0; i < L.traps.length; i++) { t = L.traps[i]; if ((t.state === 'tell' || t.state === 'up') && Math.abs(pcx - (t.x + (t.w || 40) / 2)) < 170) return true; }
+  for (i = 0; i < L.traps.length; i++) { t = L.traps[i]; if ((t.state === 'tell' || t.state === 'up' || t.state === 'on' || t.state === 'erupt' || t.state === 'gust') && Math.abs(pcx - (t.x + (t.w || 40) / 2)) < 170) return true; }
   for (i = 0; i < balls.length; i++) if (Math.abs(pcx - (balls[i].x + 24)) < 230) return true;
   if (player.grounded && player.groundRef) { var o = player.groundRef.owner; if (o && (o.state === 'crack' || o.state === 'fusing')) return true; }
   return false;
@@ -1460,8 +2474,10 @@ function drawWorld(){
   ctx.translate(-Math.round(camX), 0);
   var i, p, c;
   for (i = 0; i < L.platforms.length; i++) drawPlatform(L.platforms[i]);
-  for (i = 0; i < L.traps.length; i++) { var t = L.traps[i]; if (t.type === 'spikes') drawSpikePatch(t); }
-  for (i = 0; i < L.traps.length; i++) { var ft = L.traps[i]; if (ft.type === 'fakeDoor') drawDoorShape(ft.x, ft.y, { fake: true }); }
+  for (i = 0; i < L.traps.length; i++) { var mt = L.traps[i]; if (mt.type === 'mire') drawMire(mt); }
+  for (i = 0; i < L.traps.length; i++) drawTrap(L.traps[i]);
+  drawCheckpointFlag();
+  drawSign();
   // coins
   for (i = 0; i < L.coins.length; i++) {
     c = L.coins[i]; if (c.got) continue;
@@ -1473,15 +2489,33 @@ function drawWorld(){
     ctx.fillStyle = '#FFF'; ctx.beginPath(); ctx.arc(c.x - 3.4, c.y + bob - 3.6, 2.1, 0, 6.29); ctx.fill();
     ctx.restore();
   }
-  // gumballs
+  // gumballs & projectiles
   for (i = 0; i < balls.length; i++) {
-    var b = balls[i];
-    ctx.save(); ctx.translate(b.x + 24, b.y + 24); ctx.rotate(b.rot);
-    ctx.fillStyle = '#FF5F7A'; ctx.beginPath(); ctx.arc(0, 0, 23, 0, 6.29); ctx.fill();
-    ctx.strokeStyle = '#33302E'; ctx.lineWidth = 3; ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.arc(0, 0, 15, 0.4, 2.4); ctx.stroke();
-    ctx.beginPath(); ctx.arc(0, 0, 7.5, 2.8, 5.2); ctx.stroke();
+    var b = balls[i], R = b.w / 2 - 1;
+    ctx.save(); ctx.translate(b.x + b.w / 2, b.y + b.h / 2); ctx.rotate(b.rot);
+    if (b.dart) {
+      ctx.fillStyle = '#7A2E6A'; ctx.beginPath(); ctx.arc(0, 0, R, 0, 6.29); ctx.fill();
+      ctx.strokeStyle = '#6FCE3A'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#5B8C3E'; ctx.beginPath(); ctx.ellipse(3, -R - 1, 4.5, 2.4, 0.6, 0, 6.29); ctx.fill();
+    } else if (b.jb) {
+      ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(0, 0, R, 0, 6.29); ctx.fill();
+      ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.6; ctx.stroke();
+      ctx.strokeStyle = '#FF5F7A'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(0, 0, R * 0.62, 0.4, 2.4); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, R * 0.3, 2.8, 5.2); ctx.stroke();
+      if (b.settled) { ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.arc(0, 0, R, 0, 6.29); ctx.fill(); }
+    } else if (b.shot) {
+      ctx.fillStyle = '#FF8FB8'; ctx.beginPath(); ctx.arc(0, 0, R, 0, 6.29); ctx.fill();
+      ctx.strokeStyle = '#33302E'; ctx.lineWidth = 2.2; ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.85)'; ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.arc(0, 0, R * 0.6, 0.4, 2.6); ctx.stroke();
+    } else {
+      ctx.fillStyle = '#FF5F7A'; ctx.beginPath(); ctx.arc(0, 0, R, 0, 6.29); ctx.fill();
+      ctx.strokeStyle = '#33302E'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(0, 0, R * 0.65, 0.4, 2.4); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, R * 0.33, 2.8, 5.2); ctx.stroke();
+    }
     ctx.restore();
   }
   var lockedDoor = L.boss && !(bossState && bossState.open);
@@ -1525,7 +2559,47 @@ var HINTS = [
   'Sugar cubes crack under your feet. Keep climbing, do not look down.',
   'Cubes crumble in pairs here — the bubbles below are a rescue row.',
   'Two doors smile at you. One of them is lying — watch for the green rim.',
-  'MINI-BOSS: survive 25 seconds! When a grass patch wiggles — MOVE!'
+  'MINI-BOSS: survive 25 seconds! When a grass patch wiggles — MOVE!',
+  'The lollipop sweeper clicks before it swings. Cross when the head is high.',
+  'Two sweepers, opposite rhythm. The middle pocket has spikes — patience is priced.',
+  'Honey drips cast a shadow first. The last drip falls through the sweeper\u2019s swing.',
+  'Cubes crumble in steps. One lollipop disc sits off the path… what is under it?',
+  'ACHOO! Ride the gust across the gap — jump as the gust hits.',
+  'Two blossoms sneeze in turns, and the lane keeps rolling. The high ledge is calm.',
+  'A spitter puffs its cheeks before it fires. Cover and the bridge are your friends.',
+  'Crossfire! The sweeper\u2019s arm blocks shots too — time your run behind it.',
+  'Yellowish grass is hollow. The first pit is a lesson; the second is not.',
+  'MINI-BOSS: sweeper and rain, in turns. The edges are havens — use them!',
+  'Taffy stretches thin under you. Running across is always safe — strolling is not.',
+  'Never stop ON the bridge. Stop on the post, read the spitter, then run.',
+  'Mint mines shake and fizz for 0.4s. Running through is safe; standing is not.',
+  'A meadow of mines, and a blossom blowing the wrong way. Cross between sneezes.',
+  'The pendulum hook swings over the bridge. Low hook coming? Wait it out.',
+  'Two hooks, opposite beats — and a mine sits on the middle post. Keep moving.',
+  'Honey mire slows your feet, not your courage. Something glints behind the wall…',
+  'Slow is dead: the lane keeps rolling. Tail the gumball, hop the ledges.',
+  'The first vine snaps back over a safe pit. Learn its stretch, then trust it.',
+  'MINI-BOSS: hooks and blinking taffy. The middle of the arena is your haven.',
+  'Jawbreakers crack, knock, then fall and roll ONE way. Watch the branch.',
+  'An alley of falling jawbreakers, and a sweeper guarding the door corner.',
+  'Fizz fountains bubble before they blow. Cross on the off-beat, ride the vine.',
+  'Three fountains in sequence, honey in the middle. Slow in the mire = sprayed.',
+  'The fountain\u2019s quiet phase always follows the crack. Drop, then cross.',
+  'Berries swell and glow before they burst. Under the bush is always safe.',
+  'Overlapping berry arcs, then a hook. Each bush has its own dead-zone.',
+  'Under fire, over fizz: the landing past the fountain is the bush\u2019s dead-zone.',
+  'Clouds sink slowly — keep hopping. A blossom blows between the clouds.',
+  'MINI-BOSS: mires, vines and fountains trade places. The centre stays dry.',
+  'Mines sit on the posts between the clouds. Run the posts, ride the clouds.',
+  'Warm-up spitter first. Then the grove counts in: pa-pa-pa — move between volleys.',
+  'The vine and the gatling share one beat. And… is there something past the door?',
+  'Mine, jawbreaker, mine, gatling. One rhythm each — do not mix them up.',
+  'A lying door first — then the REAL doorstep blooms. Jump it, or wait it out.',
+  'The grove fires from behind, the fountain guards the middle, the door blooms.',
+  'Every patch of grass lies here. Spikes, hollows, a bloom — remember the tells.',
+  'Two lying doors, two clouds, one blooming doorstep. The long lie ends here.',
+  'Final rehearsal: sweeper, hook, vine, gatling — all at their true speeds.',
+  'THE SWEETEST LIE: three phases. Picnic, cake, and a door that lies. Survive!'
 ];
 function showScreen(name){
   var secs = document.querySelectorAll('.screen');
@@ -1597,7 +2671,7 @@ function renderHome(){
   if (cont) {
     if (save.statuses[ci] === 'open' || save.statuses[ci] === 'skipped') {
       cont.disabled = false;
-      sub.textContent = 'World 1 · Level ' + (ci + 1) + (ci >= 10 ? ' · Step 6' : '');
+      sub.textContent = 'World 1 · Level ' + (ci + 1);
     } else { cont.disabled = true; sub.textContent = ''; }
   }
   var pc = $('homeChar');
@@ -1665,7 +2739,8 @@ function renderLevels(){
   var cl = worldCleared(1), co = worldCompleted(1), sk = worldSkipped(1);
   var med = 0; for (var j = 0; j < 50; j++) med += save.medals[j] || 0;
   $('lsHead').textContent = '🍭 WORLD 1 · LOLLIPOP MEADOW';
-  $('lsSub').textContent = cl + '/50 cleared · ' + co + ' completed + ' + sk + ' skipped · 🏅 ' + med + ' medals (real completes only)';
+  $('lsSub').textContent = cl + '/50 cleared · ' + co + ' completed + ' + sk + ' skipped · 🏅 ' + med + ' medals (real completes only)' +
+    ' · ⭐ Secrets in this world: ' + w1SecretsFound() + '/3 — hidden bonus levels: coins + completion only, no medals';
   var zl = $('zoneList'); var html = '';
   for (var z = 0; z < 5; z++) {
     html += '<div class="zonetitle">ZONE ' + (z + 1) + ' · ' + ZONES_W1[z] + '</div><div class="nodegrid">';
@@ -1679,8 +2754,7 @@ function renderLevels(){
       if (st === 'skipped') cls += ' skipped';
       if (st === 'open' && idx === currentIdx()) cls += ' current';
       html += '<button class="' + cls + '" data-node="' + idx + '">' + label +
-        (stars ? '<span class="stars">' + stars + '</span>' : '') +
-        (idx >= 10 ? '<span class="s6">S6</span>' : '') + '</button>';
+        (stars ? '<span class="stars">' + stars + '</span>' : '') + '</button>';
     }
     html += '</div>';
   }
@@ -1700,7 +2774,6 @@ function previewNode(idx){
   var head = 'Level ' + n + ' — ' + meta[0];
   var body = '', playBtn = '';
   if (st === 'locked') body = '🔒 Locked — clear the level before it to open this one.';
-  else if (idx >= 10) body = 'This level\u2019s design is final (Step 4 list) — it becomes playable in Step 6.';
   else {
     var bt = save.bestTimes[idx], dd = save.deathsByLevel[idx] || 0, mc = save.medals[idx] || 0;
     body = (st === 'skipped' ? '⏭ SKIPPED · 0 medals · ' : '🏅 ' + mc + ' medals · ') +
@@ -1874,7 +2947,7 @@ function applySettings(){
 /* ----- GAME SCREEN FLOW ----- */
 var pausedFrom = 'playing';
 function enterLevel(idx){
-  if (idx >= LEVELS.length) { toast('Levels 11–50 become playable in Step 6'); showScreen('levels'); return; }
+  if (idx >= LEVELS.length) { showScreen('levels'); return; }
   save.lastPlayed = idx; persist();
   showScreen('game');
   checkSkipReady._fired = levelDeaths >= 5; // re-arm note: startLevel below resets deaths
@@ -1886,17 +2959,20 @@ function enterLevel(idx){
 function refreshHUD(){
   if (!L) return;
   var el;
-  el = $('hudLevel'); if (el) el.textContent = 'W1 · LEVEL ' + (cur + 1);
+  el = $('hudLevel'); if (el) el.textContent = L.isSecret ? '⭐ SECRET · ' + L.name : 'W1 · LEVEL ' + (cur + 1);
   el = $('hudDeaths'); if (el) { var t = '💀 ' + levelDeaths; if (el.textContent !== t) el.textContent = t; }
   el = $('hudTime'); if (el) el.textContent = '⏱ ' + fmtTime(levelTime);
   el = $('hudCoins'); if (el) el.textContent = '🪙 +' + runCoins;
-  el = $('skipBtn'); if (el) el.classList.toggle('on', gState === 'playing' && levelDeaths >= skipThreshold());
+  el = $('skipBtn'); if (el) el.classList.toggle('on', gState === 'playing' && !L.isSecret && levelDeaths >= skipThreshold());
   el = $('bossbar');
   if (el) {
     el.classList.toggle('on', !!L.boss);
     if (L.boss && bossState) {
       var f = $('bossFill'); if (f) f.style.width = clamp(bossState.t / bossState.dur * 100, 0, 100) + '%';
-      var bl = $('bossLab'); if (bl) bl.textContent = bossState.open ? 'ARCH OPEN — GO! 🏃' : 'SURVIVE! ' + Math.max(0, Math.ceil(bossState.dur - bossState.t)) + 's';
+      var bl = $('bossLab');
+      if (bl) bl.textContent = bossState.open ? 'ARCH OPEN — GO! 🏃'
+        : (L.boss.phases ? '⚔ ' + (bossState.phaseName || '') + ' · SURVIVE! ' + Math.max(0, Math.ceil(bossState.dur - bossState.t)) + 's'
+                         : 'SURVIVE! ' + Math.max(0, Math.ceil(bossState.dur - bossState.t)) + 's');
     }
   }
 }
@@ -1908,7 +2984,7 @@ function pauseGame(){
   openModal('modal-pause');
 }
 function resumeGame(){ closeModal('modal-pause'); if (gState === 'paused') gState = 'playing'; }
-function quitToMap(){ closeModal('modal-pause'); closeModal('modal-result'); trial = null; gState = 'menu'; showScreen('levels'); }
+function quitToMap(){ closeModal('modal-pause'); closeModal('modal-result'); trial = null; curSecret = null; gState = 'menu'; showScreen('levels'); }
 function maybeInterstitial(res){
   AdService.showInterstitial({ levelInWorld: res.level, isBoss: res.level % 10 === 0 });
 }
@@ -1919,16 +2995,29 @@ function medalDiv(earned, label, sub){
 }
 UIHooks.onWin = function(res){
   lastResult = res; doubleUsed = false;
-  var rt = $('resTitle'); if (rt) rt.textContent = 'LEVEL ' + res.level + ' COMPLETE!';
+  var rt = $('resTitle');
   var rm = $('resMedals');
+  var rs = $('resStats'); var rc = $('resCoins');
+  var bd = $('btnDouble'); if (bd) bd.style.display = res.coins > 0 ? '' : 'none';
+  var bn = $('btnNext');
+  if (res.secret) { // secret levels: completion + coins, NO medals (GDD §6)
+    if (rt) rt.textContent = '⭐ SECRET FOUND!';
+    if (rm) rm.innerHTML = '<div style="font-weight:800;font-size:14px;line-height:1.5">“' + res.name + '” — cleared!<br>World 1 secrets: ' + res.secretsW1 + '/3 · Total: ' + res.secretsTotal + '/12<br><span style="opacity:.75">Secrets give coins and completion — no medals.</span></div>';
+    if (rs) rs.textContent = '⏱ Time ' + fmtTime(res.time) + ' · 💀 Deaths ' + res.deaths;
+    if (rc) rc.textContent = '🪙 Coins +' + res.coins + ' banked · Bank: ' + save.coins;
+    if (bn) bn.textContent = 'MAP ▶';
+    setTimeout(function(){ SFX.medal(); }, 250);
+    openModal('modal-result');
+    return;
+  }
+  if (rt) rt.textContent = 'LEVEL ' + res.level + ' COMPLETE!';
   if (rm) rm.innerHTML =
     medalDiv(true, 'COMPLETE', 'cleared it!') +
     medalDiv(res.deaths <= res.deathPar, 'DEATHS ≤ ' + res.deathPar, 'you: ' + res.deaths) +
     medalDiv(res.time <= res.parTime, 'TIME ≤ ' + fmtTime(res.parTime), 'you: ' + fmtTime(res.time));
-  var rs = $('resStats'); if (rs) rs.textContent = '⏱ Time ' + fmtTime(res.time) + ' · 💀 Deaths ' + res.deaths + ' · Best time ' + fmtTime(res.best);
-  var rc = $('resCoins'); if (rc) rc.textContent = '🪙 Coins +' + res.coins + ' banked · Bank: ' + save.coins;
-  var bd = $('btnDouble'); if (bd) bd.style.display = res.coins > 0 ? '' : 'none';
-  var bn = $('btnNext'); if (bn) bn.textContent = (cur + 1 < 50) ? 'NEXT ▶' : 'MAP ▶';
+  if (rs) rs.textContent = '⏱ Time ' + fmtTime(res.time) + ' · 💀 Deaths ' + res.deaths + ' · Best time ' + fmtTime(res.best);
+  if (rc) rc.textContent = '🪙 Coins +' + res.coins + ' banked · Bank: ' + save.coins;
+  if (bn) bn.textContent = (cur + 1 < 50) ? 'NEXT ▶' : 'MAP ▶';
   setTimeout(function(){ SFX.medal(); }, 250);
   openModal('modal-result');
 };
@@ -2027,6 +3116,7 @@ function bindUI(){
   $('btnRestart').addEventListener('click', function(){ if (gState === 'playing' || gState === 'paused') { closeModal('modal-pause'); startLevel(cur); toast('Fresh start!'); } });
   $('skipBtn').addEventListener('click', function(){
     if (gState !== 'playing') return;
+    if (L && L.isSecret) return; // secrets cannot be skipped
     pausedFrom = gState; gState = 'paused';
     var sd = $('skipDeaths'); if (sd) sd.textContent = '💀 Deaths this level: ' + levelDeaths;
     openModal('modal-skip');
@@ -2049,10 +3139,15 @@ function bindUI(){
   /* result */
   $('btnNext').addEventListener('click', function(){
     closeModal('modal-result');
+    if (lastResult && lastResult.secret) { curSecret = null; gState = 'menu'; showScreen('levels'); return; }
     if (lastResult) maybeInterstitial(lastResult);
     if (cur + 1 < LEVELS.length) enterLevel(cur + 1); else showScreen('levels');
   });
-  $('btnReplay').addEventListener('click', function(){ closeModal('modal-result'); enterLevel(cur); });
+  $('btnReplay').addEventListener('click', function(){
+    closeModal('modal-result');
+    if (lastResult && lastResult.secret) { startSecret(lastResult.id); return; }
+    enterLevel(cur);
+  });
   $('btnResMap').addEventListener('click', function(){
     closeModal('modal-result');
     if (lastResult) maybeInterstitial(lastResult);
@@ -2135,6 +3230,7 @@ function init(){
 /* ---------------- test / debug API ---------------- */
 window.SD = {
   LEVELS: LEVELS, LEVEL_META: LEVEL_META, PAR_TIMES: PAR_TIMES,
+  SECRET_LEVELS: SECRET_LEVELS, SECRET_META: SECRET_META,
   CHARACTERS: CHARACTERS, SKINS: SKINS, TIPS: TIPS,
   Analytics: Analytics, AdService: AdService,
   get save(){ return save; },
@@ -2142,7 +3238,10 @@ window.SD = {
   get gState(){ return gState; }, get levelDeaths(){ return levelDeaths; },
   get levelTime(){ return levelTime; }, get runCoins(){ return runCoins; },
   get bossState(){ return bossState; }, get balls(){ return balls; },
+  get curSecret(){ return curSecret; }, get respawnPt(){ return respawnPt; },
+  get bossResumeT(){ return bossResumeT; }, get runCpTaken(){ return runCpTaken; },
   startLevel: startLevel, stepGame: stepGame, respawn: respawn, restartAttempt: restartAttempt,
+  startSecret: startSecret, winSecret: winSecret, secretsDoneCount: secretsDoneCount, w1SecretsFound: w1SecretsFound,
   winLevel: winLevel, die: die, doSkip: doSkip, reviveAccept: reviveAccept,
   medalsFor: medalsFor, skipThreshold: skipThreshold,
   charUnlocked: function(id){ var c = charById(id); return c ? charUnlocked(c) : false; }, currentIdx: currentIdx,
