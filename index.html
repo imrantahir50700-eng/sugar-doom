@@ -141,14 +141,18 @@ h2.ptitle{text-align:center;font-size:min(7vw,34px);font-weight:900;color:#fff;-
   position:relative;flex:none;
   width:min(100%,calc(100dvh * 1.58148));
   aspect-ratio:854/540;
-  border:4px solid var(--ink);border-radius:14px;overflow:hidden;background:#FFB7D1;
-  box-shadow:0 6px 0 rgba(51,48,46,.8);
+  /* APP MODE: flush and borderless — no rounded card, no border, no shadow.
+     The canvas IS the screen; card language is webpage language. */
+  border:none;border-radius:0;overflow:hidden;background:#FFB7D1;
+  box-shadow:none;
 }
-@media (max-width:700px){ #stage{border-left:none;border-right:none;border-radius:0} }
 #cv{display:block;width:100%;height:100%;touch-action:none}
 #hud{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:6px 8px;pointer-events:none;z-index:4}
 #hud .hleft{display:flex;gap:5px;flex-wrap:wrap}
 .hchip{background:rgba(255,255,255,.88);border:2px solid var(--ink);border-radius:999px;padding:1px 9px;font-weight:900;font-size:13px;line-height:1.5}
+/* Level-Devil minimal chrome: timer + coins stay available but quiet —
+   smaller, lighter, semi-transparent. Level + Deaths are the loud chips. */
+.hchip.dim{background:rgba(255,255,255,.42);border-color:rgba(51,48,46,.38);font-size:11px;font-weight:800;padding:0 7px;line-height:1.6}
 .hchip.pop{animation:chipop .3s ease}
 @keyframes chipop{40%{transform:scale(1.25)}}
 .hbtns{display:flex;flex-direction:column;gap:5px;align-items:flex-end;pointer-events:auto}
@@ -402,8 +406,8 @@ body.in-game #brandline{display:none}
       <div class="hleft">
         <span class="hchip" id="hudLevel">W1 · LEVEL 1</span>
         <span class="hchip" id="hudDeaths">💀 0</span>
-        <span class="hchip" id="hudTime">⏱ 0:00</span>
-        <span class="hchip" id="hudCoins">🪙 0</span>
+        <span class="hchip dim" id="hudTime">⏱ 0:00</span>
+        <span class="hchip dim" id="hudCoins">🪙 0</span>
       </div>
       <div class="hbtns">
         <button class="iconbtn" id="btnPause" title="Pause" aria-label="Pause"><span class="ic ic-pause"></span></button>
