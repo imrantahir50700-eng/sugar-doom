@@ -178,35 +178,10 @@ h2.ptitle{text-align:center;font-size:min(7vw,34px);font-weight:900;color:#fff;-
   font-weight:900;font-size:16px;padding:6px 16px;border-radius:999px;opacity:0;transition:all .18s;pointer-events:none;white-space:nowrap;z-index:5;
 }
 #toast.show{opacity:1;transform:translateX(-50%) scale(1)}
-/* ---------- PORTRAIT GATE (app mode) ----------
-   Covers the gameplay stage whenever a level is up in portrait.
-   Landscape is the game's only mode: rotate, or tap Play fullscreen. */
-#rotGate{
-  position:absolute;inset:0;z-index:30;display:none;
-  flex-direction:column;align-items:center;justify-content:center;gap:14px;
-  text-align:center;padding:24px;color:var(--ink);
-  background:
-    radial-gradient(rgba(255,255,255,.22) 2.2px, rgba(255,255,255,0) 3px) 0 0/26px 26px,
-    linear-gradient(180deg,#FF9FC4 0%,#FFB7D1 30%,#FFD3E4 62%,#A8EAC8 100%);
-}
-#rotGate.on{display:flex}
-.rg-phone{
-  width:56px;height:94px;border:4px solid var(--ink);border-radius:13px;background:#fff;
-  box-shadow:0 5px 0 rgba(51,48,46,.75);position:relative;flex:none;
-  animation:rgrot 2.4s ease-in-out infinite;
-}
-.rg-phone::before{
-  content:"";position:absolute;left:6px;right:6px;top:6px;bottom:15px;border-radius:6px;
-  background:linear-gradient(180deg,var(--bubble) 0%,#FFD3E4 55%,var(--grass) 100%);
-}
-.rg-phone::after{
-  content:"";position:absolute;left:50%;bottom:4px;transform:translateX(-50%);
-  width:15px;height:4px;border-radius:2px;background:var(--ink);
-}
-@keyframes rgrot{0%,18%{transform:rotate(0deg)}52%,82%{transform:rotate(90deg)}100%{transform:rotate(0deg)}}
-.rg-title{font-size:min(7.4vw,27px);font-weight:900;color:#fff;-webkit-text-stroke:1.6px var(--ink);text-shadow:0 3px 0 rgba(51,48,46,.65)}
-.rg-sub{font-weight:800;font-size:14.5px;opacity:.85;margin-top:-8px}
-#rotGate .btn{margin-top:4px}
+/* ---------- GROUND DOCK (portrait full-screen) ----------
+   Hidden everywhere except portrait phones (see the portrait media
+   query below): there it becomes the ground band under the canvas. */
+#groundDock{display:none}
 #touch{position:absolute;bottom:8px;left:0;right:0;display:none;justify-content:space-between;padding:0 10px;pointer-events:none;z-index:4}
 #touch.on{display:flex}
 .tgrp{display:flex;gap:10px;pointer-events:auto}
@@ -232,6 +207,53 @@ body.tsize-L .tbtn{width:64px;height:64px;font-size:23px}
 /* On boss levels the boss bar owns the top-centre slot; the hint drops below it. */
 #stage:has(#bossbar.on) #gameHint{top:78px}
 @media (max-width:700px){ #gameHint{white-space:normal} }
+/* ---------- PORTRAIT FULL-SCREEN (owner order, 2026-11-01) ----------
+   No rotation is demanded — portrait is a first-class way to play.
+   Inside the fixed full-viewport game layer the screen composes as ONE
+   continuous game world, top to bottom:
+     · sky zone — the layer's sky gradient runs behind everything; the
+       HUD chips lift out of the canvas and live up here;
+     · the canvas at full viewport width (world view unchanged, 854×540),
+       anchored in the upper-middle;
+     · a ground band below the canvas, continuing the in-game ground
+       (cookie dirt #8A5A2B, mint icing-grass #A8EAC8 as its top edge,
+       scalloped drip + white gloss exactly like the in-canvas ground);
+     · the touch controls dock at the bottom of that ground band —
+       off the playfield, off the in-canvas ground, off the player.
+   Landscape and desktop keep the App Mode presentation untouched. */
+@media (orientation: portrait) and (max-width: 900px){
+  #scr-game.on{justify-content:flex-start}
+  #stage{margin-top:calc(54px + env(safe-area-inset-top, 0px))}
+  /* HUD leaves the canvas and sits in the sky zone above it */
+  #hud{position:fixed;top:env(safe-area-inset-top, 0px);left:0;right:0;z-index:26}
+  /* ground band: fills every pixel from the canvas's bottom edge to
+     the bottom of the screen — no pink page, no empty void */
+  #groundDock{
+    display:block;position:relative;flex:1 1 auto;width:100%;
+    background:
+      radial-gradient(rgba(0,0,0,.13) 5px, rgba(0,0,0,0) 6.5px) 12px 52px/58px 46px,
+      radial-gradient(rgba(255,255,255,.30) 3.5px, rgba(255,255,255,0) 5px) 30px 88px/46px 60px,
+      linear-gradient(180deg, #8A5A2B 0%, #7A4E24 55%, #6B4423 100%);
+  }
+  /* mint icing-grass top edge: 13px band + scalloped drips + gloss line,
+     the same recipe the canvas ground is drawn with */
+  #groundDock::before{
+    content:"";position:absolute;left:0;right:0;top:0;height:22px;pointer-events:none;
+    background:
+      radial-gradient(circle 6.5px at 13px 13px, #A8EAC8 6.4px, rgba(168,234,200,0) 7.6px) 0 0/26px 22px repeat-x,
+      linear-gradient(180deg, #A8EAC8 0, #A8EAC8 13px, rgba(168,234,200,0) 13px);
+  }
+  #groundDock::after{
+    content:"";position:absolute;left:2px;right:2px;top:1.5px;height:2.5px;pointer-events:none;
+    background:rgba(255,255,255,.75);border-radius:2px;
+  }
+  /* touch controls dock in the ground zone, bottom of the screen */
+  #touch{
+    position:fixed;left:0;right:0;top:auto;bottom:0;z-index:27;align-items:flex-end;
+    padding:0 14px calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  #touch .tbtn{background:rgba(255,255,255,.72)}
+}
 /* ---------- MODALS ---------- */
 .modal{position:fixed;inset:0;background:rgba(51,48,46,.55);display:none;align-items:center;justify-content:center;z-index:40;padding:14px}
 .modal.on{display:flex}
@@ -428,12 +450,7 @@ body.in-game #brandline{display:none}
       </div>
     </div>
   </div>
-  <div id="rotGate" role="dialog" aria-label="Rotate your phone to play">
-    <div class="rg-phone"></div>
-    <div class="rg-title">Rotate your phone to play</div>
-    <p class="rg-sub">Sugar Doom plays in landscape — the full candy view.</p>
-    <button class="btn" id="btnRotFs">Play fullscreen</button>
-  </div>
+  <div id="groundDock" aria-hidden="true"></div>
 </section>
 
 <!-- ================= PAUSE ================= -->
@@ -1943,7 +1960,6 @@ function startLevel(idx){
   Analytics.push('level_start', { level: idx + 1, name: L.name });
   if (typeof startMusic === 'function') startMusic(!!L.boss);
   refreshHUD();
-  syncRotGate(); // app mode: entering a level in portrait lands behind the gate, paused
 }
 function restartAttempt(){ // boss give-up / final death: fresh attempt, deaths kept; boss clock resumes at phase/checkpoint
   var d = levelDeaths, rc = runCoins, sid = curSecret;
@@ -5039,7 +5055,6 @@ function showScreen(name){
   var mods = document.querySelectorAll('.modal');
   for (var j = 0; j < mods.length; j++) mods[j].classList.remove('on');
   document.body.classList.toggle('in-game', name === 'game');
-  syncRotGate();
   if (name === 'home') renderHome();
   if (name === 'worlds') renderWorlds();
   if (name === 'levels') renderLevels();
@@ -5049,13 +5064,12 @@ function showScreen(name){
 }
 function openModal(id){ var m = $(id); if (m) m.classList.add('on'); }
 function closeModal(id){ var m = $(id); if (m) m.classList.remove('on'); }
-/* ----- APP MODE glue: fullscreen + landscape lock + portrait gate -----
-   Gameplay is a landscape app. The gate (#rotGate, CSS) covers the game
-   stage in portrait; syncRotGate() keeps it — and an auto-pause — in step
-   with orientation. Every browser call is best-effort: where fullscreen
-   or orientation lock is unavailable (iOS), the gate simply stays until
-   the player rotates the phone by hand. */
-var gatePaused = false;
+/* ----- Fullscreen helper (OPTIONAL enhancement — nothing gates on it) --
+   The game plays full-screen in BOTH orientations: portrait gets the
+   full-screen game-world layout (CSS), landscape the edge-to-edge stage.
+   Nothing blocks or pauses play because of orientation; rotating just
+   reflows. This helper only powers the Home FULLSCREEN button, and every
+   browser call is best-effort (failures are swallowed silently). */
 function goFullscreenLandscape(){
   try {
     var el = document.documentElement;
@@ -5072,26 +5086,6 @@ function goFullscreenLandscape(){
       var p = req.call(el);
       if (p && p.then) p.then(lock, lock); else lock();
     } else lock();
-  } catch(e){}
-}
-function isPortrait(){
-  try { if (window.matchMedia) return window.matchMedia('(orientation: portrait)').matches; } catch(e){}
-  return window.innerHeight > window.innerWidth;
-}
-function syncRotGate(){
-  try {
-    var gate = $('rotGate'); if (!gate) return;
-    var s = $('scr-game');
-    var show = !!(s && s.classList && s.classList.contains('on')) && isPortrait();
-    gate.classList.toggle('on', show);
-    if (show) {
-      // Gate is up: freeze play (silently — the gate itself is the message).
-      if (typeof gState !== 'undefined' && gState === 'playing') { gState = 'paused'; gatePaused = true; }
-    } else if (gatePaused) {
-      // Gate lifted by rotation: hand the run back exactly as it was.
-      gatePaused = false;
-      if (typeof gState !== 'undefined' && gState === 'paused') gState = 'playing';
-    }
   } catch(e){}
 }
 function charById(id){ for (var i = 0; i < CHARACTERS.length; i++) if (CHARACTERS[i].id === id) return CHARACTERS[i]; return CHARACTERS[0]; }
@@ -5455,7 +5449,7 @@ function pauseGame(){
   syncSettingsUI();
   openModal('modal-pause');
 }
-function resumeGame(){ closeModal('modal-pause'); if (gState === 'paused') gState = 'playing'; syncRotGate(); }
+function resumeGame(){ closeModal('modal-pause'); if (gState === 'paused') gState = 'playing'; }
 function quitToMap(){ closeModal('modal-pause'); closeModal('modal-result'); trial = null; curSecret = null; gState = 'menu'; showScreen('levels'); }
 function maybeInterstitial(res){
   var liw = res.levelInWorld || levelInWorld(res.level - 1);
@@ -5586,17 +5580,10 @@ function bindUI(){
   $('btnPrivacy').addEventListener('click', function(){ openModal('modal-privacy'); });
   $('btnPrivacyClose').addEventListener('click', function(){ closeModal('modal-privacy'); });
   /* game */
-  /* App Mode: Home FULLSCREEN and the portrait gate's button share one
-     fullscreen+landscape-lock helper; the gate follows orientation and
-     fullscreen changes. (The old dismissible rotate pill is gone.) */
+  /* Home FULLSCREEN button: optional enhancement only — the game is
+     full-screen in both orientations with or without it. */
   var fsBtn = $('btnFs');
   if (fsBtn) fsBtn.addEventListener('click', function(){ goFullscreenLandscape(); });
-  var rotFsBtn = $('btnRotFs');
-  if (rotFsBtn) rotFsBtn.addEventListener('click', function(){ goFullscreenLandscape(); });
-  window.addEventListener('resize', syncRotGate);
-  window.addEventListener('orientationchange', syncRotGate);
-  document.addEventListener('fullscreenchange', syncRotGate);
-  document.addEventListener('webkitfullscreenchange', syncRotGate);
   $('btnPause').addEventListener('click', function(){ if (gState === 'playing') pauseGame(); });
   $('btnRestart').addEventListener('click', function(){ if (gState === 'playing' || gState === 'paused') { closeModal('modal-pause'); startLevel(cur); toast('Fresh start!'); } });
   $('skipBtn').addEventListener('click', function(){
@@ -5606,7 +5593,7 @@ function bindUI(){
     var sd = $('skipDeaths'); if (sd) sd.textContent = '💀 Deaths this level: ' + levelDeaths;
     openModal('modal-skip');
   });
-  $('btnKeepTrying').addEventListener('click', function(){ closeModal('modal-skip'); if (gState === 'paused') gState = 'playing'; syncRotGate(); });
+  $('btnKeepTrying').addEventListener('click', function(){ closeModal('modal-skip'); if (gState === 'paused') gState = 'playing'; });
   $('btnDoSkip').addEventListener('click', function(){
     AdService.showRewarded('skip').then(function(okGot){
       if (okGot) {
