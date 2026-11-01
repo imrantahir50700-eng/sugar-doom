@@ -146,6 +146,18 @@ h2.ptitle{text-align:center;font-size:min(7vw,34px);font-weight:900;color:#fff;-
   border:none;border-radius:0;overflow:hidden;background:#FFB7D1;
   box-shadow:none;
 }
+/* ---------- COVER-FIT (owner order, 2026-11-01) ----------
+   On screens at or wider than the native 854x540 aspect (427/270) the
+   stage COVERS the game layer — no backdrop bars on the sides. The
+   canvas's displayed aspect then drives the dynamic view width in
+   fitView(): the world view widens (up to the 1300 cap, aspect 65/27)
+   so a wider screen shows MORE world instead of empty sides. Beyond
+   the cap the stage falls back to the fitted size and the layer
+   backdrop shows, exactly as before. Portrait never matches this
+   aspect range, so the portrait composition below is untouched. */
+@media (min-aspect-ratio: 427/270) and (max-aspect-ratio: 65/27){
+  #stage{width:100%;height:100%;aspect-ratio:auto}
+}
 #cv{display:block;width:100%;height:100%;touch-action:none}
 #hud{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:flex-start;padding:6px 8px;pointer-events:none;z-index:4}
 #hud .hleft{display:flex;gap:5px;flex-wrap:wrap}
@@ -1791,7 +1803,7 @@ SECRET_LEVELS.push(
    Constants (proven): run 266 · jump vy -762 · gravity 2000 rise /
    3000 fall · terminal 1140 · coyote 0.10 · buffer 0.10 · cut x0.45.
    ================================================================ */
-var VW = 854, VH = 540;
+var VW = 854, VH = 540; // VH is fixed; VW is the DYNAMIC visible world width — fitView() recomputes it from the canvas's displayed size (854 at/below native aspect, growing to a 1300 cap on wider screens)
 var L = null, cur = 0, player = null;
 var gState = 'menu'; // menu | playing | won | revive
 var input = { left:false, right:false, jump:false, jumpPressed:false };
@@ -3343,6 +3355,42 @@ function frame(ts){
    RENDER — fully code-drawn candy world (no image assets).
    ================================================================ */
 var cv = null, ctx = null, animT = 0;
+/* ---------- COVER-FIT view fitting (owner order, 2026-11-01) ----------
+   VW (the visible world width) is computed from the canvas's own
+   displayed size: VW = clamp(540 * dispW/dispH, 854, 1300). At or
+   below the native 854/540 aspect VW stays 854 — nothing changes.
+   On wider screens the view widens, so the canvas stretched over the
+   whole game layer shows MORE world instead of backdrop bars.
+   The backing store tracks displayed size x devicePixelRatio (DPR
+   capped at 2, width capped at 2800px for perf); draw() maps view
+   units onto it via viewScale / viewOffX. viewOffX > 0 only when the
+   backing ends up wider than VW x viewScale (the >1300-cap case);
+   draw() then centres the view and sky-fills the margins. fitView()
+   runs at the top of every draw() and on resize / orientation /
+   fullscreen changes; with a hidden or stub canvas it is a no-op and
+   the current view is left untouched. */
+var viewScale = 1, viewOffX = 0, lastFitW = -1, lastFitH = -1;
+function computeVW(aspect){ return clamp(Math.round(VH * aspect), 854, 1300); }
+function fitView(){
+  if (!cv || !ctx) return;
+  var dw = cv.clientWidth || 0, dh = cv.clientHeight || 0;
+  if (!dw || !dh) return; // hidden or stub canvas: keep the current view
+  if (dw === lastFitW && dh === lastFitH) return; // unchanged since last fit
+  lastFitW = dw; lastFitH = dh;
+  VW = computeVW(dw / dh);
+  var dpr = Math.min((typeof window !== 'undefined' && window.devicePixelRatio) || 1, 2);
+  var bw = Math.max(1, Math.round(dw * dpr)), bh = Math.max(1, Math.round(dh * dpr));
+  if (bw > 2800) { var bk = 2800 / bw; bw = 2800; bh = Math.max(1, Math.round(bh * bk)); }
+  if (cv.width !== bw) cv.width = bw;
+  if (cv.height !== bh) cv.height = bh;
+  viewScale = bh / VH;
+  viewOffX = Math.max(0, (bw - VW * viewScale) / 2);
+}
+function skyStops(){ // the current world's sky gradient stops — mirrors drawBG (W1) / drawBGFactory (W2) / drawBGPeaks (W3)
+  if (L && L.world === 3) return [[0, '#FF9E6B'], [0.45, '#FFB7D1'], [1, '#AEE3F5']];
+  if (L && L.world === 2) return [[0, '#2A1708'], [0.6, '#4A2C12'], [1, '#33200D']];
+  return [[0, '#FFB7D1'], [0.55, '#FFD3E4'], [1, '#BDEFFF']];
+}
 function rr2(x, y, w, h, r){
   r = Math.min(r, w / 2, h / 2);
   ctx.beginPath();
@@ -3390,7 +3438,7 @@ function drawBGFactory(){ // W2: indoor industrial layers (Bible parallax 0 / 0.
   ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
   // (1) far factory wall, panelled, one lit window band (parallax 0)
   ctx.fillStyle = 'rgba(255,227,179,0.05)';
-  for (var wp = 0; wp < 8; wp++) ctx.fillRect(wp * 128 + 8, 26, 104, 300);
+  for (var wp = 0; wp * 128 < VW + 128; wp++) ctx.fillRect(wp * 128 + 8, 26, 104, 300); // COVER-FIT: panel count follows VW (identical 8 at native 854)
   ctx.fillStyle = 'rgba(255,190,90,0.10)'; ctx.fillRect(0, 330, VW, 26);
   // (2) big gears + machine silhouettes (0.15)
   for (var gi2 = 0; gi2 < 4; gi2++) {
@@ -4805,6 +4853,22 @@ function drawWorld(){
   ctx.save();
   ctx.translate(-Math.round(camX), 0);
   var i, p, c;
+  // COVER-FIT: on a wide view (VW wider than the level) the authored
+  // ground would end mid-screen at the level's right edge. Extend any
+  // ground platform that touches that edge out to the view's right
+  // edge, drawn by drawPlatform itself in the world's own recipe —
+  // render only, collision data untouched. The left edge can never
+  // show outside the world: camX clamps at 0 in updateCamera.
+  if (camX + VW > L.width) {
+    for (i = 0; i < L.platforms.length; i++) {
+      p = L.platforms[i];
+      if (p.kind === 'ground' && p.x + p.w >= L.width - 1) {
+        var gp = {}; for (var gk in p) gp[gk] = p[gk];
+        gp.w = Math.ceil(camX + VW - p.x) + 4;
+        drawPlatform(gp);
+      }
+    }
+  }
   for (i = 0; i < L.platforms.length; i++) drawPlatform(L.platforms[i]);
   for (i = 0; i < L.traps.length; i++) { var mt = L.traps[i]; if (mt.type === 'mire') drawMire(mt); if (mt.type === 'snare') drawSnare(mt); if (mt.type === 'meltwater') drawMeltwater(mt); if (mt.type === 'warmth') drawWarmthTrap(mt); }
   for (i = 0; i < L.traps.length; i++) drawTrap(L.traps[i]);
@@ -4899,7 +4963,18 @@ function drawWorld(){
 function draw(){
   if (!ctx || !L) return;
   animT += 1 / 60;
-  ctx.clearRect(0, 0, VW, VH);
+  fitView();
+  // COVER-FIT: paint the FULL backing store with the world's sky first.
+  // On screens wider than the view cap this fills the side margins with
+  // sky (never clear/black); everywhere it backstops the shake slivers
+  // at the view edges. drawBG then overdraws the view region itself.
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  var bh2 = cv.height || VH;
+  var sg = ctx.createLinearGradient(0, 0, 0, bh2), sst = skyStops();
+  for (var ssi = 0; ssi < sst.length; ssi++) sg.addColorStop(sst[ssi][0], sst[ssi][1]);
+  ctx.fillStyle = sg;
+  ctx.fillRect(0, 0, cv.width || VW, bh2);
+  ctx.setTransform(viewScale, 0, 0, viewScale, viewOffX, 0);
   var shX = 0, shY = 0;
   if (shakeT > 0 && save.settings.shake) { shX = (Math.random() * 2 - 1) * 6 * shakeT * 4; shY = (Math.random() * 2 - 1) * 4 * shakeT * 4; }
   ctx.save();
@@ -4909,6 +4984,7 @@ function draw(){
   ctx.restore();
   if (deathFlashT > 0) { ctx.fillStyle = 'rgba(224,60,60,' + clamp(deathFlashT * 2.4, 0, 0.3) + ')'; ctx.fillRect(0, 0, VW, VH); }
   if (slowmoT > 0) { ctx.fillStyle = 'rgba(126,208,255,.10)'; ctx.fillRect(0, 0, VW, VH); }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
 }
 
 /* ================================================================
@@ -5086,6 +5162,22 @@ function goFullscreenLandscape(){
       var p = req.call(el);
       if (p && p.then) p.then(lock, lock); else lock();
     } else lock();
+  } catch(e){}
+}
+/* COVER-FIT micro-item (owner order): starting a level from a tap also
+   asks for true fullscreen — WITHOUT any orientation lock, so portrait
+   stays portrait and landscape stays landscape. Best-effort only: it
+   fails silently where unsupported and never blocks or gates play.
+   Called only from enterLevel(), whose callers are all user taps
+   (level-map play buttons, Home Play/Continue, trials, result-screen
+   Next/Retry) — code-driven starts (restart buttons call startLevel
+   directly) never reach it. */
+function goFullscreenOnly(){
+  try {
+    if (document.fullscreenElement || document.webkitFullscreenElement) return;
+    var el = document.documentElement;
+    var req = el && (el.requestFullscreen || el.webkitRequestFullscreen);
+    if (req) { var p = req.call(el); if (p && p.catch) p.catch(function(){}); }
   } catch(e){}
 }
 function charById(id){ for (var i = 0; i < CHARACTERS.length; i++) if (CHARACTERS[i].id === id) return CHARACTERS[i]; return CHARACTERS[0]; }
@@ -5409,6 +5501,7 @@ function enterLevel(idx){
   if (idx >= LEVELS.length) { showScreen('levels'); return; }
   save.lastPlayed = idx; persist();
   showScreen('game');
+  goFullscreenOnly(); // tap path only (see helper): true fullscreen, no orientation lock, silent if unsupported
   checkSkipReady._fired = levelDeaths >= 5; // re-arm note: startLevel below resets deaths
   checkSkipReady._fired = false;
   startLevel(idx);
@@ -5689,6 +5782,11 @@ function init(){
     save.streak.lastDay = today; persist();
   }
   cv = $('cv'); if (cv) { try { ctx = cv.getContext('2d'); } catch(e){ ctx = null; } }
+  // COVER-FIT: recompute the view on viewport changes (draw() also polls fitView every frame)
+  window.addEventListener('resize', fitView);
+  window.addEventListener('orientationchange', fitView);
+  document.addEventListener('fullscreenchange', fitView);
+  document.addEventListener('webkitfullscreenchange', fitView);
   buildSettings();
   bindUI();
   bindInput();
@@ -5715,6 +5813,8 @@ window.SD = {
   get bossState(){ return bossState; }, get balls(){ return balls; },
   get curSecret(){ return curSecret; }, get respawnPt(){ return respawnPt; },
   get bossResumeT(){ return bossResumeT; }, get runCpTaken(){ return runCpTaken; },
+  computeVW: computeVW, fitView: fitView,
+  get VW(){ return VW; }, get viewScale(){ return viewScale; }, get viewOffX(){ return viewOffX; },
   startLevel: startLevel, stepGame: stepGame, respawn: respawn, restartAttempt: restartAttempt,
   startSecret: startSecret, winSecret: winSecret, secretsDoneCount: secretsDoneCount, w1SecretsFound: w1SecretsFound, worldSecretsFound: worldSecretsFound,
   get activeChar(){ return activeChar; }, metaFor: metaFor, parFor: parFor, worldOfIdx: worldOfIdx, levelInWorld: levelInWorld,
