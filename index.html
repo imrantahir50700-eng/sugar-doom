@@ -127,10 +127,19 @@ h2.ptitle{text-align:center;font-size:min(7vw,34px);font-weight:900;color:#fff;-
 #skinAction.on{display:block}
 /* ---------- GAME ---------- */
 #scr-game{position:relative;padding:0;overflow:hidden}
-#scr-game.on{display:flex;flex-direction:column;align-items:center;justify-content:center}
+#scr-game.on{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  /* APP MODE: gameplay owns the whole viewport — a fixed layer, edge to edge.
+     The game's own sky + a subtle candy-dot pattern fill every letterbox
+     area, so there is never a "page" around the game. */
+  position:fixed;inset:0;z-index:20;
+  background:
+    radial-gradient(rgba(255,255,255,.22) 2.2px, rgba(255,255,255,0) 3px) 0 0/26px 26px,
+    linear-gradient(180deg,#FF9FC4 0%,#FFB7D1 30%,#FFD3E4 62%,#A8EAC8 100%);
+}
 #stage{
   position:relative;flex:none;
-  width:min(100%,calc((100dvh - 26px) * 1.58148));
+  width:min(100%,calc(100dvh * 1.58148));
   aspect-ratio:854/540;
   border:4px solid var(--ink);border-radius:14px;overflow:hidden;background:#FFB7D1;
   box-shadow:0 6px 0 rgba(51,48,46,.8);
@@ -165,14 +174,35 @@ h2.ptitle{text-align:center;font-size:min(7vw,34px);font-weight:900;color:#fff;-
   font-weight:900;font-size:16px;padding:6px 16px;border-radius:999px;opacity:0;transition:all .18s;pointer-events:none;white-space:nowrap;z-index:5;
 }
 #toast.show{opacity:1;transform:translateX(-50%) scale(1)}
-#rotHint{
-  position:absolute;top:48px;left:50%;transform:translateX(-50%);z-index:6;display:none;
-  background:rgba(51,48,46,.82);color:#fff;font-weight:800;font-size:12.5px;padding:5px 12px;border-radius:999px;
-  cursor:pointer;white-space:nowrap;animation:rotfade 1s ease 6s forwards;
+/* ---------- PORTRAIT GATE (app mode) ----------
+   Covers the gameplay stage whenever a level is up in portrait.
+   Landscape is the game's only mode: rotate, or tap Play fullscreen. */
+#rotGate{
+  position:absolute;inset:0;z-index:30;display:none;
+  flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  text-align:center;padding:24px;color:var(--ink);
+  background:
+    radial-gradient(rgba(255,255,255,.22) 2.2px, rgba(255,255,255,0) 3px) 0 0/26px 26px,
+    linear-gradient(180deg,#FF9FC4 0%,#FFB7D1 30%,#FFD3E4 62%,#A8EAC8 100%);
 }
-#rotHint .rx{opacity:.75;margin-left:7px;font-weight:900}
-@keyframes rotfade{to{opacity:.35}}
-@media (orientation:portrait){ #rotHint.show{display:block} }
+#rotGate.on{display:flex}
+.rg-phone{
+  width:56px;height:94px;border:4px solid var(--ink);border-radius:13px;background:#fff;
+  box-shadow:0 5px 0 rgba(51,48,46,.75);position:relative;flex:none;
+  animation:rgrot 2.4s ease-in-out infinite;
+}
+.rg-phone::before{
+  content:"";position:absolute;left:6px;right:6px;top:6px;bottom:15px;border-radius:6px;
+  background:linear-gradient(180deg,var(--bubble) 0%,#FFD3E4 55%,var(--grass) 100%);
+}
+.rg-phone::after{
+  content:"";position:absolute;left:50%;bottom:4px;transform:translateX(-50%);
+  width:15px;height:4px;border-radius:2px;background:var(--ink);
+}
+@keyframes rgrot{0%,18%{transform:rotate(0deg)}52%,82%{transform:rotate(90deg)}100%{transform:rotate(0deg)}}
+.rg-title{font-size:min(7.4vw,27px);font-weight:900;color:#fff;-webkit-text-stroke:1.6px var(--ink);text-shadow:0 3px 0 rgba(51,48,46,.65)}
+.rg-sub{font-weight:800;font-size:14.5px;opacity:.85;margin-top:-8px}
+#rotGate .btn{margin-top:4px}
 #touch{position:absolute;bottom:8px;left:0;right:0;display:none;justify-content:space-between;padding:0 10px;pointer-events:none;z-index:4}
 #touch.on{display:flex}
 .tgrp{display:flex;gap:10px;pointer-events:auto}
@@ -185,11 +215,18 @@ h2.ptitle{text-align:center;font-size:min(7vw,34px);font-weight:900;color:#fff;-
 body.tsize-S .tbtn{width:46px;height:46px;font-size:17px}
 body.tsize-L .tbtn{width:64px;height:64px;font-size:23px}
 #gameHint{
-  position:absolute;left:50%;transform:translateX(-50%);bottom:8px;z-index:3;pointer-events:none;
+  /* App mode: inside the stage, top-center, directly under the HUD chip row —
+     never over the ground or the touch clusters. Fades out after ~6s of play
+     (the .hintfade class is armed at level start in enterLevel). */
+  position:absolute;left:50%;transform:translateX(-50%);top:44px;z-index:3;pointer-events:none;
   background:rgba(255,255,255,.85);border:2px solid var(--ink);border-radius:999px;
   padding:3px 13px;font-size:13.5px;font-weight:800;min-height:0;margin:0;max-width:94%;text-align:center;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  transition:opacity .6s ease;
 }
+#gameHint.hintfade{opacity:0}
+/* On boss levels the boss bar owns the top-centre slot; the hint drops below it. */
+#stage:has(#bossbar.on) #gameHint{top:78px}
 @media (max-width:700px){ #gameHint{white-space:normal} }
 /* ---------- MODALS ---------- */
 .modal{position:fixed;inset:0;background:rgba(51,48,46,.55);display:none;align-items:center;justify-content:center;z-index:40;padding:14px}
@@ -231,6 +268,8 @@ input.agein{font-family:inherit;font-size:20px;font-weight:900;text-align:center
   flex:none;text-align:center;font-size:11px;font-weight:800;letter-spacing:1.6px;
   color:rgba(51,48,46,.72);padding:5px 8px 6px;text-transform:uppercase;
 }
+/* App mode: the brandline belongs to the menu screens only — never in game. */
+body.in-game #brandline{display:none}
 .ic-fs{display:inline-block;width:13px;height:13px;margin-right:7px;vertical-align:-1px;position:relative}
 .ic-fs::before,.ic-fs::after{content:"";position:absolute;width:5px;height:5px;border:2.4px solid currentColor}
 .ic-fs::before{top:0;left:0;border-right:none;border-bottom:none}
@@ -373,8 +412,8 @@ input.agein{font-family:inherit;font-size:20px;font-weight:900;text-align:center
       </div>
     </div>
     <div id="bossbar"><div class="blab" id="bossLab">SURVIVE!</div><div class="btrack"><div class="bfill" id="bossFill"></div></div></div>
+    <div class="tipslot" id="gameHint"></div>
     <div id="toast"></div>
-    <div id="rotHint">Rotate your phone for the full view<span class="rx">✕</span></div>
     <div id="touch">
       <div class="tgrp">
         <button class="tbtn" id="tLeft">◀</button>
@@ -385,7 +424,12 @@ input.agein{font-family:inherit;font-size:20px;font-weight:900;text-align:center
       </div>
     </div>
   </div>
-  <div class="tipslot" id="gameHint"></div>
+  <div id="rotGate" role="dialog" aria-label="Rotate your phone to play">
+    <div class="rg-phone"></div>
+    <div class="rg-title">Rotate your phone to play</div>
+    <p class="rg-sub">Sugar Doom plays in landscape — the full candy view.</p>
+    <button class="btn" id="btnRotFs">Play fullscreen</button>
+  </div>
 </section>
 
 <!-- ================= PAUSE ================= -->
@@ -1895,6 +1939,7 @@ function startLevel(idx){
   Analytics.push('level_start', { level: idx + 1, name: L.name });
   if (typeof startMusic === 'function') startMusic(!!L.boss);
   refreshHUD();
+  syncRotGate(); // app mode: entering a level in portrait lands behind the gate, paused
 }
 function restartAttempt(){ // boss give-up / final death: fresh attempt, deaths kept; boss clock resumes at phase/checkpoint
   var d = levelDeaths, rc = runCoins, sid = curSecret;
@@ -3426,24 +3471,33 @@ function drawBGPeaks(){
   ctx.fillStyle = 'rgba(255,255,255,0.9)'; // snowfall (leans with the wind)
   for (i = 0; i < 26; i++) { var sx = (i * 173 + animT * 22) % (VW + 40) - 20, sy = (i * 97 + animT * 34 * (1 + (i % 3) * 0.4)) % (VH + 20) - 10; circ(sx + Math.sin(animT + i) * 5, sy, 2); ctx.fill(); }
 }
+var COFF = [[-2.6,0],[2.6,0],[0,-2.6],[0,2.6],[-1.9,-1.9],[1.9,-1.9],[-1.9,1.9],[1.9,1.9]];
+function cloudUnionPath(cx, cy, s){
+  // One cloud = three overlapping ellipses treated as a single union blob.
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 44 * s, 17 * s, 0, 0, 6.29);
+  ctx.ellipse(cx + 30 * s, cy + 4 * s, 30 * s, 13 * s, 0, 0, 6.29);
+  ctx.ellipse(cx - 32 * s, cy + 5 * s, 26 * s, 11 * s, 0, 0, 6.29);
+}
 function drawBG(){
   if (L && L.world === 3) { drawBGPeaks(); return; }
   if (L && L.world === 2) { drawBGFactory(); return; }
   var g = ctx.createLinearGradient(0, 0, 0, VH);
   g.addColorStop(0, '#FFB7D1'); g.addColorStop(0.55, '#FFD3E4'); g.addColorStop(1, '#BDEFFF');
   ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
-  // cotton-candy clouds (parallax 0.15) — outlined, sprite-style
-  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  // cotton-candy clouds (parallax 0.15) — ONE filled silhouette per cloud:
+  // an ink underlay of the same union stamped at 8 offsets leaves a single
+  // unbroken outer outline; the white union fill then covers every internal
+  // ellipse edge, so no scribble strokes show inside the cloud.
   for (var i = 0; i < 9; i++) {
     var cx = ((i * 210 + hash1(i) * 90 - camX * 0.15) % (VW + 240) + VW + 240) % (VW + 240) - 120;
     var cy = 34 + hash1(i + 40) * 90, s = 0.7 + hash1(i + 80) * 0.7;
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, 44 * s, 17 * s, 0, 0, 6.29); ctx.ellipse(cx + 30 * s, cy + 4, 30 * s, 13 * s, 0, 0, 6.29); ctx.ellipse(cx - 32 * s, cy + 5, 26 * s, 11 * s, 0, 0, 6.29);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(51,48,46,.45)'; ctx.lineWidth = 2.5; ctx.stroke();
-    ctx.fillStyle = 'rgba(255,183,209,.55)';
-    ctx.beginPath(); ctx.ellipse(cx - 10 * s, cy + 6 * s, 26 * s, 8 * s, 0, 0, 6.29); ctx.fill();
+    ctx.fillStyle = 'rgba(51,48,46,.45)';
+    for (var o = 0; o < 8; o++) { cloudUnionPath(cx + COFF[o][0], cy + COFF[o][1], s); ctx.fill(); }
     ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    cloudUnionPath(cx, cy, s); ctx.fill();
+    ctx.fillStyle = 'rgba(255,183,209,.55)'; // belly shade
+    ctx.beginPath(); ctx.ellipse(cx - 10 * s, cy + 6 * s, 26 * s, 8 * s, 0, 0, 6.29); ctx.fill();
   }
   // gummy hills (0.35) — ink rim + sprinkles
   for (var h = 0; h < 6; h++) {
@@ -4980,7 +5034,8 @@ function showScreen(name){
   var el = $('scr-' + name); if (el) el.classList.add('on');
   var mods = document.querySelectorAll('.modal');
   for (var j = 0; j < mods.length; j++) mods[j].classList.remove('on');
-  var rh = $('rotHint'); if (rh && name === 'game' && !rh.style.display) rh.classList.add('show');
+  document.body.classList.toggle('in-game', name === 'game');
+  syncRotGate();
   if (name === 'home') renderHome();
   if (name === 'worlds') renderWorlds();
   if (name === 'levels') renderLevels();
@@ -4990,6 +5045,51 @@ function showScreen(name){
 }
 function openModal(id){ var m = $(id); if (m) m.classList.add('on'); }
 function closeModal(id){ var m = $(id); if (m) m.classList.remove('on'); }
+/* ----- APP MODE glue: fullscreen + landscape lock + portrait gate -----
+   Gameplay is a landscape app. The gate (#rotGate, CSS) covers the game
+   stage in portrait; syncRotGate() keeps it — and an auto-pause — in step
+   with orientation. Every browser call is best-effort: where fullscreen
+   or orientation lock is unavailable (iOS), the gate simply stays until
+   the player rotates the phone by hand. */
+var gatePaused = false;
+function goFullscreenLandscape(){
+  try {
+    var el = document.documentElement;
+    var req = el && (el.requestFullscreen || el.webkitRequestFullscreen);
+    var lock = function(){
+      try {
+        if (window.screen && screen.orientation && screen.orientation.lock) {
+          var lp = screen.orientation.lock('landscape');
+          if (lp && lp.catch) lp.catch(function(){});
+        }
+      } catch(e){}
+    };
+    if (req) {
+      var p = req.call(el);
+      if (p && p.then) p.then(lock, lock); else lock();
+    } else lock();
+  } catch(e){}
+}
+function isPortrait(){
+  try { if (window.matchMedia) return window.matchMedia('(orientation: portrait)').matches; } catch(e){}
+  return window.innerHeight > window.innerWidth;
+}
+function syncRotGate(){
+  try {
+    var gate = $('rotGate'); if (!gate) return;
+    var s = $('scr-game');
+    var show = !!(s && s.classList && s.classList.contains('on')) && isPortrait();
+    gate.classList.toggle('on', show);
+    if (show) {
+      // Gate is up: freeze play (silently — the gate itself is the message).
+      if (typeof gState !== 'undefined' && gState === 'playing') { gState = 'paused'; gatePaused = true; }
+    } else if (gatePaused) {
+      // Gate lifted by rotation: hand the run back exactly as it was.
+      gatePaused = false;
+      if (typeof gState !== 'undefined' && gState === 'paused') gState = 'playing';
+    }
+  } catch(e){}
+}
 function charById(id){ for (var i = 0; i < CHARACTERS.length; i++) if (CHARACTERS[i].id === id) return CHARACTERS[i]; return CHARACTERS[0]; }
 function charUnlocked(ch){ return ch.world <= 1 || worldCleared(ch.world - 1) >= 50; }
 function currentIdx(){
@@ -5314,7 +5414,14 @@ function enterLevel(idx){
   checkSkipReady._fired = levelDeaths >= 5; // re-arm note: startLevel below resets deaths
   checkSkipReady._fired = false;
   startLevel(idx);
-  var hint = $('gameHint'); if (hint) hint.textContent = '💡 ' + hintFor(idx);
+  var hint = $('gameHint');
+  if (hint) {
+    hint.textContent = '💡 ' + hintFor(idx);
+    // App mode: the hint shows fresh each level, then fades off the action.
+    hint.classList.remove('hintfade');
+    if (window.__hintT) clearTimeout(window.__hintT);
+    window.__hintT = setTimeout(function(){ var h = $('gameHint'); if (h) h.classList.add('hintfade'); }, 6000);
+  }
   var tb = $('touch'); if (tb) tb.classList.toggle('on', IS_TOUCH);
 }
 function refreshHUD(){
@@ -5344,7 +5451,7 @@ function pauseGame(){
   syncSettingsUI();
   openModal('modal-pause');
 }
-function resumeGame(){ closeModal('modal-pause'); if (gState === 'paused') gState = 'playing'; }
+function resumeGame(){ closeModal('modal-pause'); if (gState === 'paused') gState = 'playing'; syncRotGate(); }
 function quitToMap(){ closeModal('modal-pause'); closeModal('modal-result'); trial = null; curSecret = null; gState = 'menu'; showScreen('levels'); }
 function maybeInterstitial(res){
   var liw = res.levelInWorld || levelInWorld(res.level - 1);
@@ -5475,16 +5582,17 @@ function bindUI(){
   $('btnPrivacy').addEventListener('click', function(){ openModal('modal-privacy'); });
   $('btnPrivacyClose').addEventListener('click', function(){ closeModal('modal-privacy'); });
   /* game */
-  /* Professional Pass: fullscreen toggle (Home) + dismissible portrait rotate hint */
+  /* App Mode: Home FULLSCREEN and the portrait gate's button share one
+     fullscreen+landscape-lock helper; the gate follows orientation and
+     fullscreen changes. (The old dismissible rotate pill is gone.) */
   var fsBtn = $('btnFs');
-  if (fsBtn) fsBtn.addEventListener('click', function(){
-    try {
-      if (document.fullscreenElement) { document.exitFullscreen(); }
-      else if (document.documentElement.requestFullscreen) { document.documentElement.requestFullscreen(); }
-    } catch(e){}
-  });
-  var rotHint = $('rotHint');
-  if (rotHint) rotHint.addEventListener('click', function(){ rotHint.classList.remove('show'); rotHint.style.display = 'none'; });
+  if (fsBtn) fsBtn.addEventListener('click', function(){ goFullscreenLandscape(); });
+  var rotFsBtn = $('btnRotFs');
+  if (rotFsBtn) rotFsBtn.addEventListener('click', function(){ goFullscreenLandscape(); });
+  window.addEventListener('resize', syncRotGate);
+  window.addEventListener('orientationchange', syncRotGate);
+  document.addEventListener('fullscreenchange', syncRotGate);
+  document.addEventListener('webkitfullscreenchange', syncRotGate);
   $('btnPause').addEventListener('click', function(){ if (gState === 'playing') pauseGame(); });
   $('btnRestart').addEventListener('click', function(){ if (gState === 'playing' || gState === 'paused') { closeModal('modal-pause'); startLevel(cur); toast('Fresh start!'); } });
   $('skipBtn').addEventListener('click', function(){
@@ -5494,7 +5602,7 @@ function bindUI(){
     var sd = $('skipDeaths'); if (sd) sd.textContent = '💀 Deaths this level: ' + levelDeaths;
     openModal('modal-skip');
   });
-  $('btnKeepTrying').addEventListener('click', function(){ closeModal('modal-skip'); if (gState === 'paused') gState = 'playing'; });
+  $('btnKeepTrying').addEventListener('click', function(){ closeModal('modal-skip'); if (gState === 'paused') gState = 'playing'; syncRotGate(); });
   $('btnDoSkip').addEventListener('click', function(){
     AdService.showRewarded('skip').then(function(okGot){
       if (okGot) {
